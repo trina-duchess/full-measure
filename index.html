@@ -34,6 +34,7 @@
   --good:#66bb6a; --good-bg:#1d2e1e; --warn:#f0b450; --warn-bg:#3a2d14; --bad:#ff5c5c; --bad-bg:#3a1414; --bar:#333;
   color-scheme:dark; }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-text-size-adjust:100%}
 body{margin:0}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--char)}
@@ -148,6 +149,39 @@ main{max-width:1320px;margin:0 auto;padding-block:14px 48px}
 .foods{user-select:none;-webkit-user-select:none}
 .fitem .grip{flex:none;color:var(--muted);font-size:14px;letter-spacing:-2px;padding:0 2px}
 .nuts{display:block;font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.35}
+.photo{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px;border:1px dashed var(--line);border-radius:12px}
+.photo label{cursor:pointer}
+.pmsg{font-size:13px;color:var(--muted);flex:1;min-width:180px}
+.pmsg.bad{color:var(--bad);font-weight:600}
+.fld input.filled{background:var(--warn-bg);border-color:var(--warn)}
+.usda{display:grid;gap:8px}
+.keyrow{display:flex;gap:8px}
+.keyrow input{flex:1;min-width:0;font:inherit;font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink)}
+.ritem{display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:8px 10px;margin-top:5px;font-size:14px}
+.ritem:hover{border-color:var(--brand);color:var(--brand)}
+.pick{display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:12px}
+.addrow{padding:10px 14px;border-bottom:1px solid var(--line)}
+.addfood{width:100%}
+.btn.solid{background:var(--brand);color:var(--on-dark)}
+.fitem .edit{flex:none;font-size:12px;font-weight:700;color:var(--brand);border:1px solid var(--brand);border-radius:999px;padding:2px 8px;cursor:pointer}
+.modal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet{background:var(--card);color:var(--ink);border-radius:16px;width:100%;max-width:560px;max-height:100%;overflow:auto;padding:18px;display:grid;gap:10px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.sheet h3{margin:0;font-size:19px;color:var(--brand)}
+.sheet h4{margin:6px 0 0;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.sheet .note{margin:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 10px}
+.fld{display:grid;gap:3px;font-size:13px}
+.fld span{font-weight:600}
+.fld em{font-style:normal;color:var(--muted);font-weight:400}
+.fld input,.fld select{font:inherit;font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);width:100%}
+.fld input:focus,.fld select:focus{outline:2px solid var(--brand);outline-offset:0}
+.fld.check{display:flex;align-items:center;gap:8px}
+.fld.check input{width:auto}
+details summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--brand);margin:4px 0 8px}
+.err{margin:0;color:var(--bad);font-size:13px;font-weight:600}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.actions .spacer{flex:1}
+.del{color:var(--bad)!important;border-color:var(--bad)!important}
 /* week + about */
 .narrow{max-width:640px}
 .hint{background:var(--char);color:var(--on-dark);border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:12px;line-height:1.45}
@@ -204,12 +238,19 @@ textarea{width:100%;height:110px;border-radius:10px;border:1px solid var(--line)
     <div class="narrow">
       <div class="card">
         <h3>How to log</h3>
+        <p class="note">Use <b>+ Add a food</b> at the top of the food list to add anything new from its Nutrition Facts label. Foods you add show an Edit button so you can fix or delete them.</p>
         <p class="note">Drag a food from the list into a meal box to add one serving. Drop it again to add another, or use − and +. Tap × to remove it. On a phone or tablet, press and hold a food for a moment, then drag.</p>
         <p class="note">The tracker puts the nutrient you're furthest from meeting at the top. Limits (sodium, added sugar, caffeine) are listed separately, since less is better there.</p>
       </div>
       <div class="card">
         <h3>Where the targets come from</h3>
         <p class="note">Daily targets are the National Academies' Dietary Reference Intakes for women 51–70 (RDA, or AI where no RDA exists), as published in the NIH Office of Dietary Supplements fact sheets. Sodium and added-sugar limits come from the Dietary Guidelines for Americans; the caffeine limit is FDA guidance. Food values come from USDA FoodData Central and your own product labels. Iodine values are approximate, and the pasta is an estimate.</p>
+      </div>
+      <div class="card">
+        <h3>USDA food lookup key</h3>
+        <p class="note">Paste the key USDA emailed you. It's saved on this device only, never in the app's code. Without it, lookups use USDA's shared demo key (a few per hour).</p>
+        <div class="keyrow"><input id="usdaKey" type="text" autocomplete="off" spellcheck="false" placeholder="Paste your USDA key"><button class="btn" id="usdaSave">Save key</button></div>
+        <p class="note" id="usdaMsg"></p>
       </div>
       <div class="card">
         <h3>Your data</h3>
@@ -226,10 +267,17 @@ textarea{width:100%;height:110px;border-radius:10px;border:1px solid var(--line)
     </div>
   </section>
 </main>
+<div class="modal" id="foodModal" hidden><form class="sheet" id="foodForm" novalidate></form></div>
 
 <script>
-const FOODS = [{"id":"egg","name":"Eggs","unit":"2 large eggs","n":{"kcal":156,"protein":12.6,"fat":10.6,"carb":1.2,"Ca":50,"Fe":1.2,"Mg":10,"P":172,"K":126,"Na":124,"Zn":1.06,"Cu":0.02,"Se":30.8,"I":52,"VitA":150,"VitD":2.2,"VitE":1.0,"VitK":0.4,"B1":0.06,"B2":0.52,"B3":0.06,"B6":0.12,"Fol":44,"B12":1.12,"Chol":294,"EPADHA":0.04},"step":1,"label":"Tap + for each 2-egg serving","cat":"Meats"},{"id":"mush","name":"Mushrooms (canned)","unit":"½ cup","n":{"kcal":25,"protein":3,"carb":3,"fiber":2,"Na":300,"K":105,"Ca":15,"Cu":0.3,"Se":5,"B2":0.03,"B3":2.1,"B6":0.08,"Fol":15,"Chol":10},"cat":"Veggies"},{"id":"pnut","name":"Salted peanuts","unit":"2 Tbsp","n":{"kcal":105.3,"protein":4.392,"fat":8.946,"carb":3.834,"fiber":1.512,"Ca":9.72,"Fe":0.407,"Mg":31.68,"P":64.44,"K":118.44,"Na":73.8,"Zn":0.596,"Cu":0.121,"Se":1.35,"VitE":0.887,"B1":0.079,"B2":0.018,"B3":2.43,"B6":0.047,"Fol":26.1,"Chol":9.54},"cat":"Sides & Snacks"},{"id":"drum","name":"Chicken drumsticks","unit":"1 drumstick","n":{"kcal":151.2,"protein":18.9,"fat":7.84,"Ca":8.4,"Fe":0.931,"Mg":16.1,"P":127.4,"K":160.3,"Na":63.0,"Zn":2.03,"Cu":0.056,"Se":16.1,"VitA":18.2,"VitD":0.14,"VitE":0.182,"VitK":2.52,"B1":0.049,"B2":0.147,"B3":4.27,"B6":0.231,"Fol":6.3,"B12":0.259,"Chol":46.2,"I":3.5,"EPADHA":0.014},"step":1,"label":"Tap + for each drumstick","cat":"Meats"},{"id":"thigh","name":"Chicken thighs","unit":"1 thigh","n":{"kcal":183.2,"protein":18.64,"fat":11.76,"Ca":9.6,"Fe":1.048,"Mg":18.4,"P":152.0,"K":178.4,"Na":67.2,"Zn":1.6,"Cu":0.056,"Se":17.6,"VitA":36.8,"VitD":0.24,"VitE":0.216,"VitK":2.08,"B1":0.056,"B2":0.16,"B3":5.12,"B6":0.248,"Fol":5.6,"B12":0.232,"Chol":45.6,"I":4.0,"EPADHA":0.024},"step":1,"label":"Tap + for each thigh","cat":"Meats"},{"id":"pork","name":"Lean pork","unit":"3 oz","n":{"kcal":121.55,"protein":22.27,"fat":2.975,"Ca":5.1,"Fe":0.935,"Mg":22.95,"P":227.8,"K":357.85,"Na":48.45,"Zn":2.04,"Cu":0.076,"Se":32.3,"VitA":1.7,"VitD":0.085,"VitE":0.17,"B1":0.807,"B2":0.289,"B3":5.95,"B6":0.57,"B12":0.484,"Chol":62.05,"I":4.25},"cat":"Meats"},{"id":"beef","name":"Lean beef","unit":"3 oz","n":{"kcal":154.7,"protein":21.76,"fat":6.8,"Ca":8.5,"Fe":2.465,"Mg":19.55,"P":190.4,"K":323.0,"Na":62.9,"Zn":5.355,"Cu":0.068,"Se":18.7,"VitD":0.085,"VitE":0.17,"VitK":1.02,"B1":0.043,"B2":0.17,"B3":5.27,"B6":0.365,"Fol":7.65,"B12":2.21,"Chol":68.0,"I":4.25},"cat":"Meats"},{"id":"sard","name":"Sardines w/ bones","unit":"4 oz","n":{"kcal":235.04,"protein":27.798,"fat":12.995,"Ca":431.66,"Fe":3.3,"Mg":44.07,"P":553.7,"K":448.61,"Na":346.91,"Zn":1.48,"Cu":0.215,"Se":59.551,"VitA":36.16,"VitD":5.424,"VitE":2.305,"VitK":2.938,"B1":0.09,"B2":0.26,"B3":5.876,"B6":0.192,"Fol":11.3,"B12":10.102,"Chol":84.75,"I":11.3,"EPADHA":1.107},"cat":"Meats"},{"id":"salm","name":"Salmon","unit":"4 oz","n":{"kcal":232.78,"protein":24.973,"fat":14.012,"Ca":16.95,"Fe":0.384,"Mg":33.9,"P":284.76,"K":433.92,"Na":68.93,"Zn":0.486,"Cu":0.057,"Se":46.782,"VitA":77.97,"VitC":4.181,"VitD":14.803,"VitE":1.243,"VitK":0.565,"B1":0.384,"B2":0.158,"B3":9.04,"B6":0.735,"Fol":38.42,"B12":3.164,"Chol":89.27,"I":11.3,"EPADHA":2.429},"cat":"Meats"},{"id":"mango","name":"Mango chunks","unit":"1¼ cup","n":{"kcal":123.6,"protein":1.689,"fat":0.783,"carb":30.9,"fiber":3.296,"Ca":22.66,"Fe":0.33,"Mg":20.6,"P":28.84,"K":346.08,"Na":2.06,"Zn":0.185,"Cu":0.227,"Se":1.236,"VitA":111.24,"VitC":74.984,"VitE":1.854,"VitK":8.652,"B1":0.062,"B2":0.082,"B3":1.38,"B6":0.247,"Fol":88.58,"Chol":15.656},"cat":"Sides & Snacks"},{"id":"ysauce","name":"Yogurt sauce","unit":"1 Tbsp","n":{"kcal":6.18,"protein":0.79,"carb":0.79,"Ca":30.18,"Fe":0.013,"Mg":2.85,"P":23.55,"K":37.41,"Na":10.15,"Zn":0.145,"Se":0.54,"I":4.65,"B1":0.007,"B2":0.035,"B3":0.018,"B6":0.007,"Fol":1.8,"B12":0.091,"Chol":2.28},"cat":"Sides & Snacks"},{"id":"pop","name":"Popcorn (air-popped)","unit":"4½ cups","n":{"kcal":139.32,"protein":4.644,"fat":1.62,"carb":28.008,"fiber":5.22,"Ca":2.52,"Fe":1.148,"Mg":51.84,"P":128.88,"K":118.44,"Na":2.88,"Zn":1.109,"Cu":0.097,"Se":3.024,"VitA":3.6,"VitE":0.104,"VitK":0.432,"B1":0.036,"B2":0.032,"B3":0.828,"B6":0.058,"Fol":11.16,"Chol":4.536},"cat":"Sides & Snacks"},{"id":"potato","name":"Baked potato w/ skin","unit":"1 medium","n":{"kcal":161,"protein":4.3,"fat":0.2,"carb":36.6,"fiber":3.8,"Ca":26,"Fe":1.87,"Mg":48,"P":121,"K":926,"Na":17,"Zn":0.62,"Cu":0.2,"Se":0.7,"VitC":16.6,"VitE":0.07,"VitK":3.5,"B1":0.11,"B2":0.08,"B3":2.4,"B6":0.54,"Fol":48,"Chol":25.7},"step":1,"label":"Tap + for each potato","cat":"Veggies"},{"id":"pasta","name":"It's That Simple pasta","unit":"1½ cups (est.)","n":{"kcal":60,"protein":2,"fat":0.5,"carb":14,"fiber":10,"Na":50},"cat":"Sides & Snacks"},{"id":"spin","name":"Dehydrated spinach","unit":"2 Tbsp (~10 g)","n":{"kcal":23.0,"protein":2.86,"fat":0.39,"carb":3.63,"fiber":2.2,"Ca":99.0,"Fe":2.71,"Mg":79.0,"P":49.0,"K":558.0,"Na":79.0,"Zn":0.53,"Cu":0.13,"Se":1.0,"VitA":469.0,"VitC":10.0,"VitE":2.03,"VitK":483.0,"B1":0.08,"B2":0.19,"B3":0.72,"B6":0.2,"Fol":194.0,"Chol":19.3},"cat":"Veggies"},{"id":"coffee","name":"Hazelnut coffee","unit":"16 oz","n":{"kcal":5,"protein":0.6,"K":232,"Mg":14,"Na":9,"B2":0.04,"B3":0.9,"Caff":190},"cat":"Drinks"},{"id":"pepsi","name":"Diet Pepsi","unit":"12 oz","n":{"Na":35,"Caff":35},"cat":"Drinks"},{"id":"centrum","name":"Centrum Women MultiGummies","unit":"2 gummies","n":{"kcal":10,"carb":3,"addsug":2,"Na":5,"VitA":600,"VitC":18,"VitD":25,"VitE":13.5,"B6":2,"Fol":267,"B12":9,"Ca":100,"I":40,"Zn":2.5},"step":1,"label":"1 = your daily 2 gummies","cat":"Supplements"},{"id":"calc","name":"Calcium + D3 gummies","unit":"2 gummies","n":{"kcal":35,"carb":9,"addsug":7,"Na":20,"VitD":17.5,"Ca":500,"P":230},"step":1,"label":"1 = your daily 2 gummies","cat":"Supplements"},{"id":"ybowl","name":"Nancy's nonfat yogurt","unit":"1 cup (8 oz)","n":{"kcal":93.47,"protein":12.02,"carb":12.02,"Ca":456.67,"Fe":0.2,"Mg":47,"P":385,"K":566.16,"Na":153.56,"Zn":2.4,"Se":8.8,"I":75,"B1":0.12,"B2":0.57,"B3":0.3,"B6":0.13,"Fol":29,"B12":1.5,"Chol":37},"step":1,"label":"Tap + for each 1-cup (8 oz) serving","cat":"Sides & Snacks"},{"id":"beans","name":"Black beans (rinsed)","unit":"½ cup","n":{"kcal":114,"protein":7.6,"fat":0.5,"carb":20.4,"fiber":7.5,"Ca":23,"Fe":1.8,"Mg":60,"P":120,"K":305,"Na":1,"Zn":1.0,"Cu":0.18,"Se":1,"B1":0.21,"B2":0.05,"B3":0.4,"B6":0.06,"Fol":128,"Chol":28},"cat":"Veggies"},{"id":"salt","name":"WinCo iodized salt","unit":"¼ tsp","n":{"Na":590,"I":67},"cat":"Supplements"},{"id":"broc","name":"Broccoli (dehydrated)","unit":"3 Tbsp dried (≈1 cup fresh)","n":{"kcal":31,"protein":2.6,"fat":0.3,"carb":6,"fiber":2.4,"Ca":43,"Fe":0.7,"Mg":19,"P":60,"K":288,"Na":30,"Zn":0.4,"Cu":0.05,"Se":2.3,"VitA":28,"VitC":40,"VitE":0.7,"VitK":92,"B1":0.06,"B2":0.11,"B3":0.6,"B6":0.16,"Fol":57,"Chol":17},"cat":"Veggies"}];
-const BYID = Object.fromEntries(FOODS.map(f=>[f.id,f]));
+const BASE_FOODS = [{"id":"egg","name":"Eggs","unit":"2 large eggs","n":{"kcal":156,"protein":12.6,"fat":10.6,"carb":1.2,"Ca":50,"Fe":1.2,"Mg":10,"P":172,"K":126,"Na":124,"Zn":1.06,"Cu":0.02,"Se":30.8,"I":52,"VitA":150,"VitD":2.2,"VitE":1.0,"VitK":0.4,"B1":0.06,"B2":0.52,"B3":0.06,"B6":0.12,"Fol":44,"B12":1.12,"Chol":294,"EPADHA":0.04},"step":1,"label":"Tap + for each 2-egg serving","cat":"Meats"},{"id":"mush","name":"Mushrooms (canned)","unit":"½ cup","n":{"kcal":25,"protein":3,"carb":3,"fiber":2,"Na":300,"K":105,"Ca":15,"Cu":0.3,"Se":5,"B2":0.03,"B3":2.1,"B6":0.08,"Fol":15,"Chol":10},"cat":"Veggies"},{"id":"pnut","name":"Salted peanuts","unit":"2 Tbsp","n":{"kcal":105.3,"protein":4.392,"fat":8.946,"carb":3.834,"fiber":1.512,"Ca":9.72,"Fe":0.407,"Mg":31.68,"P":64.44,"K":118.44,"Na":73.8,"Zn":0.596,"Cu":0.121,"Se":1.35,"VitE":0.887,"B1":0.079,"B2":0.018,"B3":2.43,"B6":0.047,"Fol":26.1,"Chol":9.54},"cat":"Sides & Snacks"},{"id":"drum","name":"Chicken drumsticks","unit":"1 drumstick","n":{"kcal":151.2,"protein":18.9,"fat":7.84,"Ca":8.4,"Fe":0.931,"Mg":16.1,"P":127.4,"K":160.3,"Na":63.0,"Zn":2.03,"Cu":0.056,"Se":16.1,"VitA":18.2,"VitD":0.14,"VitE":0.182,"VitK":2.52,"B1":0.049,"B2":0.147,"B3":4.27,"B6":0.231,"Fol":6.3,"B12":0.259,"Chol":46.2,"I":3.5,"EPADHA":0.014},"step":1,"label":"Tap + for each drumstick","cat":"Meats"},{"id":"thigh","name":"Chicken thighs","unit":"1 thigh","n":{"kcal":183.2,"protein":18.64,"fat":11.76,"Ca":9.6,"Fe":1.048,"Mg":18.4,"P":152.0,"K":178.4,"Na":67.2,"Zn":1.6,"Cu":0.056,"Se":17.6,"VitA":36.8,"VitD":0.24,"VitE":0.216,"VitK":2.08,"B1":0.056,"B2":0.16,"B3":5.12,"B6":0.248,"Fol":5.6,"B12":0.232,"Chol":45.6,"I":4.0,"EPADHA":0.024},"step":1,"label":"Tap + for each thigh","cat":"Meats"},{"id":"pork","name":"Lean pork","unit":"3 oz","n":{"kcal":121.55,"protein":22.27,"fat":2.975,"Ca":5.1,"Fe":0.935,"Mg":22.95,"P":227.8,"K":357.85,"Na":48.45,"Zn":2.04,"Cu":0.076,"Se":32.3,"VitA":1.7,"VitD":0.085,"VitE":0.17,"B1":0.807,"B2":0.289,"B3":5.95,"B6":0.57,"B12":0.484,"Chol":62.05,"I":4.25},"cat":"Meats"},{"id":"beef","name":"Lean beef","unit":"3 oz","n":{"kcal":154.7,"protein":21.76,"fat":6.8,"Ca":8.5,"Fe":2.465,"Mg":19.55,"P":190.4,"K":323.0,"Na":62.9,"Zn":5.355,"Cu":0.068,"Se":18.7,"VitD":0.085,"VitE":0.17,"VitK":1.02,"B1":0.043,"B2":0.17,"B3":5.27,"B6":0.365,"Fol":7.65,"B12":2.21,"Chol":68.0,"I":4.25},"cat":"Meats"},{"id":"sard","name":"Sardines w/ bones","unit":"4 oz","n":{"kcal":235.04,"protein":27.798,"fat":12.995,"Ca":431.66,"Fe":3.3,"Mg":44.07,"P":553.7,"K":448.61,"Na":346.91,"Zn":1.48,"Cu":0.215,"Se":59.551,"VitA":36.16,"VitD":5.424,"VitE":2.305,"VitK":2.938,"B1":0.09,"B2":0.26,"B3":5.876,"B6":0.192,"Fol":11.3,"B12":10.102,"Chol":84.75,"I":11.3,"EPADHA":1.107},"cat":"Meats"},{"id":"salm","name":"Salmon","unit":"4 oz","n":{"kcal":232.78,"protein":24.973,"fat":14.012,"Ca":16.95,"Fe":0.384,"Mg":33.9,"P":284.76,"K":433.92,"Na":68.93,"Zn":0.486,"Cu":0.057,"Se":46.782,"VitA":77.97,"VitC":4.181,"VitD":14.803,"VitE":1.243,"VitK":0.565,"B1":0.384,"B2":0.158,"B3":9.04,"B6":0.735,"Fol":38.42,"B12":3.164,"Chol":89.27,"I":11.3,"EPADHA":2.429},"cat":"Meats"},{"id":"mango","name":"Mango chunks","unit":"1¼ cup","n":{"kcal":123.6,"protein":1.689,"fat":0.783,"carb":30.9,"fiber":3.296,"Ca":22.66,"Fe":0.33,"Mg":20.6,"P":28.84,"K":346.08,"Na":2.06,"Zn":0.185,"Cu":0.227,"Se":1.236,"VitA":111.24,"VitC":74.984,"VitE":1.854,"VitK":8.652,"B1":0.062,"B2":0.082,"B3":1.38,"B6":0.247,"Fol":88.58,"Chol":15.656},"cat":"Sides & Snacks"},{"id":"ysauce","name":"Yogurt sauce","unit":"1 Tbsp","n":{"kcal":6.18,"protein":0.79,"carb":0.79,"Ca":30.18,"Fe":0.013,"Mg":2.85,"P":23.55,"K":37.41,"Na":10.15,"Zn":0.145,"Se":0.54,"I":4.65,"B1":0.007,"B2":0.035,"B3":0.018,"B6":0.007,"Fol":1.8,"B12":0.091,"Chol":2.28},"cat":"Sides & Snacks"},{"id":"pop","name":"Popcorn (air-popped)","unit":"4½ cups","n":{"kcal":139.32,"protein":4.644,"fat":1.62,"carb":28.008,"fiber":5.22,"Ca":2.52,"Fe":1.148,"Mg":51.84,"P":128.88,"K":118.44,"Na":2.88,"Zn":1.109,"Cu":0.097,"Se":3.024,"VitA":3.6,"VitE":0.104,"VitK":0.432,"B1":0.036,"B2":0.032,"B3":0.828,"B6":0.058,"Fol":11.16,"Chol":4.536},"cat":"Sides & Snacks"},{"id":"potato","name":"Baked potato w/ skin","unit":"1 medium","n":{"kcal":161,"protein":4.3,"fat":0.2,"carb":36.6,"fiber":3.8,"Ca":26,"Fe":1.87,"Mg":48,"P":121,"K":926,"Na":17,"Zn":0.62,"Cu":0.2,"Se":0.7,"VitC":16.6,"VitE":0.07,"VitK":3.5,"B1":0.11,"B2":0.08,"B3":2.4,"B6":0.54,"Fol":48,"Chol":25.7},"step":1,"label":"Tap + for each potato","cat":"Veggies"},{"id":"pasta","name":"It's That Simple pasta","unit":"1½ cups (est.)","n":{"kcal":60,"protein":2,"fat":0.5,"carb":14,"fiber":10,"Na":50},"cat":"Sides & Snacks"},{"id":"spin","name":"Dehydrated spinach","unit":"2 Tbsp (~10 g)","n":{"kcal":23.0,"protein":2.86,"fat":0.39,"carb":3.63,"fiber":2.2,"Ca":99.0,"Fe":2.71,"Mg":79.0,"P":49.0,"K":558.0,"Na":79.0,"Zn":0.53,"Cu":0.13,"Se":1.0,"VitA":469.0,"VitC":10.0,"VitE":2.03,"VitK":483.0,"B1":0.08,"B2":0.19,"B3":0.72,"B6":0.2,"Fol":194.0,"Chol":19.3},"cat":"Veggies"},{"id":"coffee","name":"Hazelnut coffee","unit":"16 oz","n":{"kcal":5,"protein":0.6,"K":232,"Mg":14,"Na":9,"B2":0.04,"B3":0.9,"Caff":190},"cat":"Drinks"},{"id":"pepsi","name":"Diet Pepsi","unit":"12 oz","n":{"Na":35,"Caff":35},"cat":"Drinks"},{"id":"centrum","name":"Centrum Women MultiGummies","unit":"2 gummies","n":{"kcal":10,"carb":3,"addsug":2,"Na":5,"VitA":600,"VitC":18,"VitD":25,"VitE":13.5,"B6":2,"Fol":267,"B12":9,"Ca":100,"I":40,"Zn":2.5},"step":1,"label":"1 = your daily 2 gummies","cat":"Supplements"},{"id":"calc","name":"Calcium + D3 gummies","unit":"2 gummies","n":{"kcal":35,"carb":9,"addsug":7,"Na":20,"VitD":17.5,"Ca":500,"P":230},"step":1,"label":"1 = your daily 2 gummies","cat":"Supplements"},{"id":"ybowl","name":"Nancy's nonfat yogurt","unit":"1 cup (8 oz)","n":{"kcal":93.47,"protein":12.02,"carb":12.02,"Ca":456.67,"Fe":0.2,"Mg":47,"P":385,"K":566.16,"Na":153.56,"Zn":2.4,"Se":8.8,"I":75,"B1":0.12,"B2":0.57,"B3":0.3,"B6":0.13,"Fol":29,"B12":1.5,"Chol":37},"step":1,"label":"Tap + for each 1-cup (8 oz) serving","cat":"Sides & Snacks"},{"id":"beans","name":"Black beans (rinsed)","unit":"½ cup","n":{"kcal":114,"protein":7.6,"fat":0.5,"carb":20.4,"fiber":7.5,"Ca":23,"Fe":1.8,"Mg":60,"P":120,"K":305,"Na":1,"Zn":1.0,"Cu":0.18,"Se":1,"B1":0.21,"B2":0.05,"B3":0.4,"B6":0.06,"Fol":128,"Chol":28},"cat":"Veggies"},{"id":"salt","name":"WinCo iodized salt","unit":"¼ tsp","n":{"Na":590,"I":67},"cat":"Supplements"},{"id":"broc","name":"Broccoli (dehydrated)","unit":"3 Tbsp dried (≈1 cup fresh)","n":{"kcal":31,"protein":2.6,"fat":0.3,"carb":6,"fiber":2.4,"Ca":43,"Fe":0.7,"Mg":19,"P":60,"K":288,"Na":30,"Zn":0.4,"Cu":0.05,"Se":2.3,"VitA":28,"VitC":40,"VitE":0.7,"VitK":92,"B1":0.06,"B2":0.11,"B3":0.6,"B6":0.16,"Fol":57,"Chol":17},"cat":"Veggies"}];
+const FOODS_KEY = "fullmeasure-foods-v1";
+function loadCustom(){ try { const v=JSON.parse(localStorage.getItem(FOODS_KEY)||"[]"); return Array.isArray(v)?v:[]; } catch(e){ return []; } }
+function saveCustom(){ try { localStorage.setItem(FOODS_KEY, JSON.stringify(CUSTOM)); } catch(e){} }
+let CUSTOM = loadCustom();
+let FOODS = [], BYID = {};
+function refreshFoods(){ FOODS=[...BASE_FOODS, ...CUSTOM.map(f=>({...f,custom:true}))]; BYID=Object.fromEntries(FOODS.map(f=>[f.id,f])); }
+refreshFoods();
 const CATS = ["Meats","Veggies","Sides & Snacks","Supplements","Drinks"];
 const MEALS = [["breakfast","Breakfast"],["lunch","Lunch"],["dinner","Dinner"],["snacks","Snacks"]];
 const NUTS = [
@@ -348,9 +396,9 @@ function fullList(f,q){
 function renderFoods(){
   const {map,top,any}=helpMap();
   document.getElementById("foods").innerHTML =
-    `<div class="ptitle">Foods <small>${any?"Highlighted = fills a gap":"Drag into a meal"}</small></div>` +
+    `<div class="ptitle">Foods <small>${any?"Highlighted = fills a gap":"Drag into a meal"}</small></div><div class="addrow"><button class="btn addfood" id="addFood">+ Add a food</button></div>` +
     CATS.map(c=>`<h4 class="cat">${c}</h4>`+FOODS.filter(f=>f.cat===c).map(f=>{ const h=map[f.id];
-      return `<button class="fitem${h?" helps":""}" data-add="${f.id}" aria-label="Add ${f.name}" title="${fullList(f,1)}"><span class="nm"><b>${f.name}${top.has(f.id)?' <span class="toppick">Top pick</span>':""}</b><small>${f.unit}</small>${nutLine(f,1)}${h?`<span class="need">Adds ${h.join(", ")}</span>`:""}</span><span class="grip" aria-hidden="true">⋮⋮</span></button>`; }).join("")).join("");
+      return `<button class="fitem${h?" helps":""}" data-add="${f.id}" aria-label="Add ${f.name}" title="${fullList(f,1)}"><span class="nm"><b>${f.name}${top.has(f.id)?' <span class="toppick">Top pick</span>':""}</b><small>${f.unit}</small>${nutLine(f,1)}${h?`<span class="need">Adds ${h.join(", ")}</span>`:""}</span>${f.custom?`<span class="edit" role="button" tabindex="0" data-edit="${f.id}" aria-label="Edit ${f.name}">Edit</span>`:""}<span class="grip" aria-hidden="true">⋮⋮</span></button>`; }).join("")).join("");
 }
 function renderMeals(){
   document.getElementById("meals").innerHTML = MEALS.map(([k,label])=>{
@@ -428,6 +476,7 @@ function moveGhost(x,y){ if(!ghost) return; ghost.style.left=x+"px"; ghost.style
 function endDrag(){ clearTimeout(drag&&drag.timer); if(ghost) ghost.remove(); ghost=null; clearOver(); drag=null; }
 const foodsEl=document.getElementById("foods");
 foodsEl.addEventListener("pointerdown",e=>{
+  if(e.target.closest("[data-edit],#addFood")) return;
   const b=e.target.closest("[data-add]"); if(!b || e.button>0) return;
   closePicker();
   if(e.pointerType==="mouse") e.preventDefault();
@@ -482,10 +531,187 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   window.scrollTo(0,0);
 });
 const bk=document.getElementById("bk"), msg=document.getElementById("bkMsg");
-document.getElementById("exp").onclick=async()=>{ const s=JSON.stringify(log); bk.value=s; bk.hidden=false;
+document.getElementById("exp").onclick=async()=>{ const s=JSON.stringify({log,foods:CUSTOM}); bk.value=s; bk.hidden=false;
   try{ await navigator.clipboard.writeText(s); msg.textContent="Backup copied. Paste it into Notes to keep it safe."; } catch(e){ bk.select(); msg.textContent="Select the text above and copy it to Notes."; } };
 document.getElementById("imp").onclick=()=>{ bk.value=""; bk.hidden=false; document.getElementById("impRow").hidden=false; msg.textContent="Paste your backup above, then tap Restore."; };
-document.getElementById("impGo").onclick=()=>{ try{ const o=JSON.parse(bk.value); if(typeof o!=="object"||Array.isArray(o)) throw 0; log=o; save(); render(); msg.textContent="Restored."; } catch(e){ msg.textContent="That text isn't a valid backup."; } };
+document.getElementById("impGo").onclick=()=>{ try{ const o=JSON.parse(bk.value); if(typeof o!=="object"||Array.isArray(o)) throw 0;
+    if(o.log && typeof o.log==="object"){ log=o.log; if(Array.isArray(o.foods)){ CUSTOM=o.foods; saveCustom(); refreshFoods(); } } else log=o;
+    save(); render(); msg.textContent="Restored."; } catch(e){ msg.textContent="That text isn't a valid backup."; } };
+// ----- Add / edit your own foods (values straight from a Nutrition Facts label, per serving) -----
+const FIELDS = [
+  ["kcal","Calories","",true],["protein","Protein","g",true],["carb","Total carbohydrate","g",true],["fiber","Dietary fiber","g",true],
+  ["addsug","Added sugars","g",true],["Na","Sodium","mg",true],["K","Potassium","mg",true],["Ca","Calcium","mg",true],["Fe","Iron","mg",true],["VitD","Vitamin D","mcg",true],
+  ["Mg","Magnesium","mg"],["Zn","Zinc","mg"],["I","Iodine","mcg"],["P","Phosphorus","mg"],["Se","Selenium","mcg"],["Cu","Copper","mg"],
+  ["VitA","Vitamin A","mcg"],["VitC","Vitamin C","mg"],["VitE","Vitamin E","mg"],["VitK","Vitamin K","mcg"],
+  ["B1","Thiamin (B1)","mg"],["B2","Riboflavin (B2)","mg"],["B3","Niacin (B3)","mg"],["B6","Vitamin B6","mg"],["Fol","Folate","mcg DFE"],["B12","Vitamin B12","mcg"],
+  ["Chol","Choline","mg"],["Caff","Caffeine","mg"],["EPADHA","Omega-3 EPA+DHA","g"],
+];
+const modal=document.getElementById("foodModal"), form=document.getElementById("foodForm");
+function field(f,v){ return `<label class="fld"><span>${f[1]}${f[2]?` <em>${f[2]}</em>`:""}</span><input type="number" inputmode="decimal" step="any" min="0" id="fm-${f[0]}" name="${f[0]}" value="${v??""}"></label>`; }
+let editing=null;
+function openForm(id){
+  if(!live()) return;
+  editing = id ? CUSTOM.find(f=>f.id===id) : null; const f=editing||{n:{},cat:"Sides & Snacks"};
+  form.innerHTML = `<h3>${editing?"Edit food":"Add a food"}</h3>
+    <p class="note">Fill from a label photo, look the food up in USDA, or type the numbers for one serving. Leave blank anything you don't have.</p>
+    <label class="fld wide"><span>Food name</span><input id="fm-name" required maxlength="60" value="${(f.name||"").replace(/"/g,"&quot;")}" placeholder="e.g. Cottage cheese, lowfat"></label>
+    <label class="fld wide"><span>Serving size</span><input id="fm-unit" required maxlength="40" value="${(f.unit||"").replace(/"/g,"&quot;")}" placeholder="e.g. ½ cup (113 g)"></label>
+    <label class="fld"><span>Group</span><select id="fm-cat">${CATS.map(c=>`<option${c===f.cat?" selected":""}>${c}</option>`).join("")}</select></label>
+    <div class="photo"><label class="btn solid" for="fm-photo">Fill from a label photo</label><input type="file" id="fm-photo" accept="image/*" hidden><span class="pmsg" id="fm-photo-msg">Snap or choose a photo of the Nutrition Facts panel.</span></div>
+    <div class="usda"><div class="keyrow"><input id="fm-q" type="search" placeholder="Or look it up in USDA, e.g. broccoli raw" value="${(f.name||"").replace(/"/g,"&quot;")}"><button type="button" class="btn" id="fm-search">Look up</button></div><div id="fm-results"></div></div>
+    <label class="fld check"><input type="checkbox" id="fm-whole"${f.step===1?" checked":""}> <span>Count whole servings only</span></label>
+    <h4>Nutrition Facts (per serving)</h4>
+    <div class="grid">${FIELDS.filter(x=>x[3]).map(x=>field(x,f.n[x[0]])).join("")}</div>
+    <details${FIELDS.some(x=>!x[3]&&f.n[x[0]])?" open":""}><summary>More nutrients (optional)</summary><div class="grid">${FIELDS.filter(x=>!x[3]).map(x=>field(x,f.n[x[0]])).join("")}</div></details>
+    <p class="err" id="fm-err" hidden></p>
+    <div class="actions">${editing?`<button type="button" class="btn plain del" id="fm-del">Delete food</button>`:""}<span class="spacer"></span><button type="button" class="btn plain" id="fm-cancel">Cancel</button><button type="submit" class="btn solid">${editing?"Save changes":"Add food"}</button></div>`;
+  modal.hidden=false; document.getElementById("fm-name").focus();
+  document.getElementById("fm-search").onclick=()=>usdaSearch();
+  document.getElementById("fm-q").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); usdaSearch(); } });
+  document.getElementById("fm-photo").onchange=e=>{ const file=e.target.files&&e.target.files[0]; e.target.value=""; if(file) readLabel(file); };
+  document.getElementById("fm-cancel").onclick=closeForm;
+  const del=document.getElementById("fm-del"); let armedDel=0;
+  if(del) del.onclick=()=>{ if(Date.now()-armedDel<4000){ CUSTOM=CUSTOM.filter(x=>x.id!==editing.id); saveCustom(); refreshFoods(); closeForm(); render(); return; } armedDel=Date.now(); del.textContent="Tap again to delete"; };
+}
+// ----- Read a Nutrition Facts photo -----
+// In the Claude preview, Claude reads the photo. On your own site (GitHub), text recognition runs on the phone.
+const DV={protein:50,fiber:28,Na:2300,K:4700,Ca:1300,Fe:18,VitD:20,Mg:420,Zn:11,I:150,P:1250,Se:55,Cu:0.9,VitA:900,VitC:90,VitE:15,VitK:120,B1:1.2,B2:1.3,B3:16,B6:1.7,Fol:400,B12:2.4,Chol:550};
+const LABEL_PROMPT = `The image is a photo of a US Nutrition Facts label. Read it carefully.
+Reply with only one JSON object for ONE serving, using these keys and leaving out anything not on the label:
+name (product name if visible), serving (serving size text as printed, e.g. "6 oz (170g)"),
+kcal, protein (g), carb (g), fiber (g), addsug (g), Na (mg), K (mg), Ca (mg), Fe (mg), VitD (mcg), Mg (mg), Zn (mg), I (mcg), P (mg), Se (mcg), Cu (mg),
+VitA (mcg RAE), VitC (mg), VitE (mg), VitK (mcg), B1 (mg), B2 (mg), B3 (mg), B6 (mg), Fol (mcg DFE), B12 (mcg), Chol (mg), Caff (mg).
+Use the printed amounts, not % Daily Value. If a nutrient shows only a %DV, convert it with these FDA Daily Values: ${JSON.stringify(DV)}.
+Numbers only (no units). Example: {"serving":"1 cup (240ml)","kcal":90,"protein":8,"Ca":300,"VitD":2.5}`;
+function photoMsg(t,bad){ const m=document.getElementById("fm-photo-msg"); if(m){ m.textContent=t; m.classList.toggle("bad",!!bad); } }
+function fillForm(data){
+  let n=0;
+  FIELDS.forEach(x=>{ const v=parseFloat(data[x[0]]); const el=document.getElementById("fm-"+x[0]); if(el && v>=0 && isFinite(v)){ el.value=+v.toFixed(v>=10?1:3); el.classList.add("filled"); n++; } });
+  if(FIELDS.some(x=>!x[3] && data[x[0]]!=null)) { const d=form.querySelector("details"); if(d) d.open=true; }
+  const nm=document.getElementById("fm-name"), un=document.getElementById("fm-unit");
+  if(data.name && !nm.value.trim()) { nm.value=String(data.name).slice(0,60); nm.classList.add("filled"); }
+  if(data.serving && !un.value.trim()) { un.value=String(data.serving).slice(0,40); un.classList.add("filled"); }
+  return n;
+}
+let sampleFn; const samplePromise = (window.claude && window.claude.use) ? window.claude.use("sample").then(s=>sampleFn=s).catch(()=>null) : Promise.resolve(null);
+async function readWithClaude(file){
+  const s = await samplePromise; if(!s) return null;
+  const caps = await s.limits().catch(()=>null); if(!caps || !caps.images) return null;
+  return await s.json(LABEL_PROMPT, {images:[file], modelTier:"default"});
+}
+function loadScript(src){ return new Promise((res,rej)=>{ const sc=document.createElement("script"); sc.src=src; sc.onload=res; sc.onerror=()=>rej(new Error("load")); document.head.appendChild(sc); }); }
+function parseLabelText(raw){
+  const t=raw.replace(/\r/g,"").replace(/(\d)([oO]+)(?=\s*m?c?g\b)/g,(m,d,o)=>d+"0".repeat(o.length)).replace(/\b[oO](?=\s*m?c?g\b)/g,"0").replace(/(\d),(\d{3})/g,"$1$2");
+  const num="(\\d+(?:\\.\\d+)?)", out={};
+  const pats={kcal:`calories\\s*${num}`, protein:`protein\\s*${num}\\s*g`, carb:`total\\s*carb\\w*\\.?\\s*${num}\\s*g`, fiber:`fiber\\s*${num}\\s*g`,
+    addsug:`incl\\w*\\.?\\s*${num}\\s*g\\s*added`, Na:`sodium\\s*${num}\\s*mg`, K:`potassium\\s*${num}\\s*mg`, Ca:`calcium\\s*${num}\\s*mg`, Fe:`iron\\s*${num}\\s*mg`,
+    VitD:`vitamin\\s*d\\d?\\s*${num}\\s*mcg`, Mg:`magnesium\\s*${num}\\s*mg`, Zn:`zinc\\s*${num}\\s*mg`, I:`iodine\\s*${num}\\s*mcg`, P:`phosphorus\\s*${num}\\s*mg`,
+    Se:`selenium\\s*${num}\\s*mcg`, Cu:`copper\\s*${num}\\s*mg`, VitA:`vitamin\\s*a\\s*${num}\\s*mcg`, VitC:`vitamin\\s*c\\s*${num}\\s*mg`, VitE:`vitamin\\s*e\\s*${num}\\s*mg`,
+    VitK:`vitamin\\s*k\\s*${num}\\s*mcg`, B1:`thiamin\\w*\\s*${num}\\s*mg`, B2:`riboflavin\\s*${num}\\s*mg`, B3:`niacin\\s*${num}\\s*mg`, B6:`vitamin\\s*b6\\s*${num}\\s*mg`,
+    Fol:`folate\\s*${num}\\s*mcg`, B12:`vitamin\\s*b12\\s*${num}\\s*mcg`, Chol:`choline\\s*${num}\\s*mg`, Caff:`caffeine\\s*${num}\\s*mg`};
+  for(const k in pats){ const m=t.match(new RegExp(pats[k],"i")); if(m) out[k]=parseFloat(m[1]); }
+  const sv=t.match(/serving\s*size\s*([^\n]{2,40})/i); if(sv) out.serving=sv[1].trim();
+  return out;
+}
+async function readWithOCR(file){
+  if(!window.Tesseract) await loadScript("https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js");
+  const r = await window.Tesseract.recognize(file,"eng",{logger:m=>{ if(m.status==="recognizing text") photoMsg(`Reading the label… ${Math.round(m.progress*100)}%`); }});
+  return parseLabelText(r.data.text||"");
+}
+async function readLabel(file){
+  if(!live()) return;
+  photoMsg("Reading the label…");
+  let data=null;
+  try { data = await readWithClaude(file); } catch(e){ if(e && e.code==="not_granted"){ photoMsg("Photo reading wasn't allowed. You can still type the numbers in.",true); return; } }
+  if(!data){ try { data = await readWithOCR(file); } catch(e){ photoMsg("Couldn't read the photo here. Type the numbers in, or try on your phone's app.",true); return; } }
+  const n = data && typeof data==="object" ? fillForm(data) : 0;
+  if(!n) photoMsg("Couldn't find Nutrition Facts numbers in that photo. Try a closer, flatter shot.",true);
+  else photoMsg(`Filled ${n} values. Check the highlighted fields against the label, then save.`);
+}
+// ----- USDA FoodData Central lookup (works on your own site; the Claude preview blocks outside connections) -----
+const KEY_STORE="fullmeasure-usda-key";
+function usdaKey(){ try{ return localStorage.getItem(KEY_STORE)||"DEMO_KEY"; }catch(e){ return "DEMO_KEY"; } }
+const FDC_NUM={kcal:["208","958","957"],protein:["203"],carb:["205"],fiber:["291"],addsug:["539"],Na:["307"],K:["306"],Ca:["301"],Fe:["303"],VitD:["328"],Mg:["304"],Zn:["309"],I:["314"],P:["305"],Se:["317"],Cu:["312"],VitA:["320"],VitC:["401"],VitE:["323"],VitK:["430"],B1:["404"],B2:["405"],B3:["406"],B6:["415"],Fol:["435"],B12:["418"],Chol:["421"],Caff:["262"]};
+let usdaPer100=null;
+function resultsEl(){ return document.getElementById("fm-results"); }
+function usdaErr(t){ resultsEl().innerHTML=`<p class="pmsg bad">${t}</p>`; }
+async function fdc(path){
+  const r = await fetch(`https://api.nal.usda.gov/fdc/v1/${path}${path.includes("?")?"&":"?"}api_key=${encodeURIComponent(usdaKey())}`);
+  if(r.status===429) throw new Error("rate"); if(r.status===403) throw new Error("key"); if(!r.ok) throw new Error("http");
+  return r.json();
+}
+function lookupError(e){
+  if(e.message==="rate") return "USDA's hourly limit was reached. Add your own key in About, or try again later.";
+  if(e.message==="key") return "USDA didn't accept the key. Check it in About.";
+  return "Couldn't reach USDA from here. The lookup works on your own Full Measure site.";
+}
+async function usdaSearch(){
+  if(!live()) return;
+  const q=document.getElementById("fm-q").value.trim(); if(!q){ usdaErr("Type a food to look up."); return; }
+  resultsEl().innerHTML=`<p class="pmsg">Searching USDA…</p>`;
+  try{
+    const d=await fdc(`foods/search?query=${encodeURIComponent(q)}&dataType=${encodeURIComponent("Foundation,SR Legacy")}&pageSize=8`);
+    const foods=(d.foods||[]);
+    if(!foods.length){ usdaErr("No USDA matches. Try fewer or simpler words."); return; }
+    resultsEl().innerHTML=`<p class="pmsg">Pick the closest match:</p>`+foods.map(f=>`<button type="button" class="ritem" data-fdc="${f.fdcId}">${f.description}</button>`).join("");
+    resultsEl().querySelectorAll("[data-fdc]").forEach(b=>b.onclick=()=>usdaPick(b.dataset.fdc,b.textContent));
+  }catch(e){ usdaErr(lookupError(e)); }
+}
+function nutrientsPer100(food){
+  const by={};
+  (food.foodNutrients||[]).forEach(n=>{ const num=String(n.nutrient?n.nutrient.number:n.nutrientNumber); const v=n.amount!=null?n.amount:n.value; if(v!=null) by[num]=v; });
+  const out={}; for(const k in FDC_NUM){ for(const num of FDC_NUM[k]){ if(by[num]!=null){ out[k]=by[num]; break; } } }
+  if(by["629"]!=null||by["621"]!=null) out.EPADHA=(by["629"]||0)+(by["621"]||0);
+  return out;
+}
+async function usdaPick(id,desc){
+  resultsEl().innerHTML=`<p class="pmsg">Loading ${desc}…</p>`;
+  try{
+    const food=await fdc(`food/${id}`);
+    usdaPer100=nutrientsPer100(food);
+    const portions=(food.foodPortions||[]).filter(p=>p.gramWeight>0).map(p=>{
+      const label=[p.amount&&p.amount!==1?p.amount:(p.amount===1?"1":""), p.portionDescription&&p.portionDescription!=="Quantity not specified"?p.portionDescription:"", p.modifier||"", (p.measureUnit&&p.measureUnit.name&&p.measureUnit.name!=="undetermined")?p.measureUnit.name:""].filter(Boolean).join(" ").replace(/\s+/g," ").trim();
+      return {label:label||"1 serving", g:p.gramWeight}; });
+    resultsEl().innerHTML=`<div class="pick"><b>${desc}</b>
+      <label class="fld"><span>Your serving</span><select id="fm-portion">${portions.map((p,i)=>`<option value="${p.g}">${p.label} (${Math.round(p.g)} g)</option>`).join("")}<option value="">Enter grams…</option></select></label>
+      <label class="fld" id="fm-gwrap"${portions.length?" hidden":""}><span>Grams per serving</span><input type="number" inputmode="decimal" id="fm-grams" min="1" step="any" value="100"></label>
+      <button type="button" class="btn solid" id="fm-use">Use these values</button></div>`;
+    const sel=document.getElementById("fm-portion"), gw=document.getElementById("fm-gwrap");
+    sel.onchange=()=>{ gw.hidden = !!sel.value; };
+    document.getElementById("fm-use").onclick=()=>{
+      const g = sel.value ? parseFloat(sel.value) : parseFloat(document.getElementById("fm-grams").value);
+      if(!(g>0)) return;
+      const data={}; for(const k in usdaPer100) data[k]=usdaPer100[k]*g/100;
+      const nm=document.getElementById("fm-name"), un=document.getElementById("fm-unit");
+      if(!nm.value.trim()) nm.value=desc.slice(0,60);
+      un.value = (sel.value ? sel.options[sel.selectedIndex].text : `${Math.round(g)} g`).slice(0,40);
+      const n=fillForm(data); un.classList.add("filled");
+      resultsEl().innerHTML=`<p class="pmsg">Filled ${n} values from USDA for ${Math.round(g)} g. Check them, then save.</p>`;
+    };
+  }catch(e){ usdaErr(lookupError(e)); }
+}
+(function(){ const inp=document.getElementById("usdaKey"), m=document.getElementById("usdaMsg");
+  try{ const k=localStorage.getItem(KEY_STORE); if(k){ inp.value=k; m.textContent="Your key is saved on this device."; } }catch(e){}
+  document.getElementById("usdaSave").onclick=()=>{ const k=inp.value.trim(); try{ if(k) localStorage.setItem(KEY_STORE,k); else localStorage.removeItem(KEY_STORE); m.textContent=k?"Saved on this device.":"Key removed; using the demo key."; }catch(e){ m.textContent="Couldn't save on this device."; } };
+})();
+function closeForm(){ modal.hidden=true; editing=null; }
+form.addEventListener("submit",e=>{
+  e.preventDefault(); if(!live()) return;
+  const name=document.getElementById("fm-name").value.trim(), unit=document.getElementById("fm-unit").value.trim(), err=document.getElementById("fm-err");
+  if(!name||!unit){ err.textContent="Add a name and a serving size."; err.hidden=false; return; }
+  const n={}; FIELDS.forEach(x=>{ const v=parseFloat(document.getElementById("fm-"+x[0]).value); if(v>0) n[x[0]]=v; });
+  if(!Object.keys(n).length){ err.textContent="Enter at least one number from the label, such as calories."; err.hidden=false; return; }
+  const food={id: editing?editing.id:"c"+Date.now().toString(36), name, unit, cat:document.getElementById("fm-cat").value, step:document.getElementById("fm-whole").checked?1:0.5, n};
+  CUSTOM = editing ? CUSTOM.map(x=>x.id===food.id?food:x) : [...CUSTOM, food];
+  saveCustom(); refreshFoods(); closeForm(); render();
+});
+modal.addEventListener("click",e=>{ if(e.target===modal) closeForm(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !modal.hidden) closeForm(); });
+document.getElementById("foods").addEventListener("click",e=>{
+  if(e.target.closest("#addFood")){ openForm(null); return; }
+  const ed=e.target.closest("[data-edit]"); if(ed){ e.preventDefault(); openForm(ed.dataset.edit); }
+});
+document.getElementById("foods").addEventListener("keydown",e=>{ const ed=e.target.closest("[data-edit]"); if(ed && (e.key==="Enter"||e.key===" ")){ e.preventDefault(); openForm(ed.dataset.edit); } });
 render();
 </script>
 </body>
