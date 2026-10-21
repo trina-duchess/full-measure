@@ -161,6 +161,8 @@ main{max-width:1320px;margin:0 auto;padding-block:14px 48px}
 .ritem:hover{border-color:var(--brand);color:var(--brand)}
 .pick{display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:12px}
 .linkbtn{border:0;background:none;color:var(--brand);font-weight:700;text-decoration:underline;padding:0;font-size:inherit}
+.syncdot{font-size:12px;color:var(--muted)}
+.syncdot.bad,#syncMsg.bad{color:var(--bad);font-weight:600}
 .addrow{padding:10px 14px;border-bottom:1px solid var(--line)}
 .addfood{width:100%}
 .btn.solid{background:var(--brand);color:var(--on-dark)}
@@ -213,6 +215,7 @@ textarea{width:100%;height:110px;border-radius:10px;border:1px solid var(--line)
     <button class="arrow" id="prev" aria-label="Previous day">‹</button>
     <div class="d"><b id="dlabel"></b><small id="dsub"></small></div>
     <button class="arrow" id="next" aria-label="Next day">›</button>
+    <span class="syncdot" id="syncDot"></span>
     <div class="quick" id="quick">
       <button class="btn plain" id="qClear">Clear day</button>
     </div>
@@ -246,6 +249,18 @@ textarea{width:100%;height:110px;border-radius:10px;border:1px solid var(--line)
       <div class="card">
         <h3>Where the targets come from</h3>
         <p class="note">Daily targets are the National Academies' Dietary Reference Intakes for women 51–70 (RDA, or AI where no RDA exists), as published in the NIH Office of Dietary Supplements fact sheets. Sodium and added-sugar limits come from the Dietary Guidelines for Americans; the caffeine limit is FDA guidance. Food values come from USDA FoodData Central and your own product labels. Iodine values are approximate, and the pasta is an estimate.</p>
+      </div>
+      <div class="card">
+        <h3>Sync across devices</h3>
+        <div id="syncOff">
+          <p class="note">Paste a GitHub token with the <b>gist</b> permission. Your log and added foods will be kept in a private Gist and shared by every device you connect. The token is saved on this device only.</p>
+          <div class="keyrow"><input id="ghToken" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your GitHub token"><button class="btn" id="ghSave">Connect</button></div>
+        </div>
+        <div id="syncOn" hidden>
+          <p class="note" id="syncWho"></p>
+          <div class="keyrow" style="flex-wrap:wrap"><button class="btn" id="syncNowBtn">Sync now</button><button class="btn plain" id="ghRemove">Turn off sync here</button></div>
+        </div>
+        <p class="note" id="syncMsg"></p>
       </div>
       <div class="card">
         <h3>USDA food lookup key</h3>
@@ -364,7 +379,7 @@ function setQty(meal,id,q){
   if (q) m[id]=q; else delete m[id];
   if (!Object.keys(m).length) delete L[meal];
   if (!Object.keys(L).length) delete log[day];
-  save(); render();
+  touchDay(day); save(); render(); queueSync();
 }
 const qty = (meal,id) => (dayLog(day)[meal]||{})[id]||0;
 
@@ -520,7 +535,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") closePicker(); });
 window.addEventListener("scroll",closePicker,{passive:true});
 let armed=0; const qc=document.getElementById("qClear");
 qc.onclick=()=>{ if(!live()) return;
-  if(Date.now()-armed<4000){ log=load(); delete log[day]; save(); armed=0; qc.textContent="Cleared"; render(); setTimeout(()=>qc.textContent="Clear day",1500); return; }
+  if(Date.now()-armed<4000){ log=load(); delete log[day]; touchDay(day); save(); queueSync(); armed=0; qc.textContent="Cleared"; render(); setTimeout(()=>qc.textContent="Clear day",1500); return; }
   armed=Date.now(); qc.textContent="Tap again to clear this day"; setTimeout(()=>{ if(armed && Date.now()-armed>=4000) qc.textContent="Clear day"; },4100); };
 document.getElementById("prev").onclick=()=>{ day=addDays(day,-1); render(); };
 document.getElementById("next").onclick=()=>{ day=addDays(day,1); render(); };
@@ -536,7 +551,8 @@ document.getElementById("exp").onclick=async()=>{ const s=JSON.stringify({log,fo
   try{ await navigator.clipboard.writeText(s); msg.textContent="Backup copied. Paste it into Notes to keep it safe."; } catch(e){ bk.select(); msg.textContent="Select the text above and copy it to Notes."; } };
 document.getElementById("imp").onclick=()=>{ bk.value=""; bk.hidden=false; document.getElementById("impRow").hidden=false; msg.textContent="Paste your backup above, then tap Restore."; };
 document.getElementById("impGo").onclick=()=>{ try{ const o=JSON.parse(bk.value); if(typeof o!=="object"||Array.isArray(o)) throw 0;
-    if(o.log && typeof o.log==="object"){ log=o.log; if(Array.isArray(o.foods)){ CUSTOM=o.foods; saveCustom(); refreshFoods(); } } else log=o;
+    if(o.log && typeof o.log==="object"){ log=o.log; if(Array.isArray(o.foods)){ CUSTOM=o.foods; saveCustom(); refreshFoods(); o.foods.forEach(f=>touchFood(f.id)); } } else log=o;
+    Object.keys(log).forEach(touchDay); queueSync();
     save(); render(); msg.textContent="Restored."; } catch(e){ msg.textContent="That text isn't a valid backup."; } };
 // ----- Add / edit your own foods (values straight from a Nutrition Facts label, per serving) -----
 const FIELDS = [
@@ -572,7 +588,7 @@ function openForm(id){
   document.getElementById("fm-photo").onchange=e=>{ const file=e.target.files&&e.target.files[0]; e.target.value=""; if(file) readLabel(file); };
   document.getElementById("fm-cancel").onclick=closeForm;
   const del=document.getElementById("fm-del"); let armedDel=0;
-  if(del) del.onclick=()=>{ if(Date.now()-armedDel<4000){ CUSTOM=CUSTOM.filter(x=>x.id!==editing.id); saveCustom(); refreshFoods(); closeForm(); render(); return; } armedDel=Date.now(); del.textContent="Tap again to delete"; };
+  if(del) del.onclick=()=>{ if(Date.now()-armedDel<4000){ CUSTOM=CUSTOM.filter(x=>x.id!==editing.id); touchFood(editing.id); saveCustom(); queueSync(); refreshFoods(); closeForm(); render(); return; } armedDel=Date.now(); del.textContent="Tap again to delete"; };
 }
 // ----- Read a Nutrition Facts photo -----
 // In the Claude preview, Claude reads the photo. On your own site (GitHub), text recognition runs on the phone.
@@ -699,6 +715,75 @@ async function usdaPick(id,desc){
   document.getElementById("usdaSave").onclick=()=>{ const k=inp.value.trim(); if(!k){ m.textContent="Paste your key first."; return; }
     try{ localStorage.setItem(KEY_STORE,k); inp.value=""; show(); }catch(e){ m.textContent="Couldn't save on this device."; } };
 })();
+// ----- Sync across devices through a private GitHub Gist -----
+// Each day and each added food carries a "last changed" time; when two devices differ, the newer one wins.
+const STAMPS_KEY="fullmeasure-stamps-v1", SYNC_KEY="fullmeasure-sync-v1", GIST_FILE="full-measure-data.json";
+function loadJSON(k,d){ try{ const v=JSON.parse(localStorage.getItem(k)||"null"); return v&&typeof v==="object"?v:d; }catch(e){ return d; } }
+function saveJSON(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+function stamps(){ const s=loadJSON(STAMPS_KEY,{}); s.days=s.days||{}; s.foods=s.foods||{}; return s; }
+function touchDay(d){ const s=stamps(); s.days[d]=Date.now(); saveJSON(STAMPS_KEY,s); }
+function touchFood(id){ const s=stamps(); s.foods[id]=Date.now(); saveJSON(STAMPS_KEY,s); }
+function syncCfg(){ return loadJSON(SYNC_KEY,{}); }
+const countItems = dayObj => Object.values(dayObj||{}).reduce((n,m)=>n+Object.keys(m||{}).length,0);
+function mergeData(local, remote){
+  const out={log:{},foods:[],stamps:{days:{},foods:{}}};
+  const days=new Set([...Object.keys(local.log),...Object.keys(remote.log),...Object.keys(local.stamps.days),...Object.keys(remote.stamps.days)]);
+  days.forEach(d=>{ const lt=local.stamps.days[d]||0, rt=remote.stamps.days[d]||0;
+    let pick = lt>rt ? "l" : rt>lt ? "r" : (countItems(local.log[d])>=countItems(remote.log[d]) ? "l" : "r");
+    const src = pick==="l"?local:remote; if(src.log[d]) out.log[d]=src.log[d]; const t=Math.max(lt,rt); if(t) out.stamps.days[d]=t; });
+  const lf=Object.fromEntries(local.foods.map(f=>[f.id,f])), rf=Object.fromEntries(remote.foods.map(f=>[f.id,f]));
+  const ids=new Set([...Object.keys(lf),...Object.keys(rf),...Object.keys(local.stamps.foods),...Object.keys(remote.stamps.foods)]);
+  ids.forEach(id=>{ const lt=local.stamps.foods[id]||0, rt=remote.stamps.foods[id]||0;
+    const f = lt>rt ? lf[id] : rt>lt ? rf[id] : (lf[id]||rf[id]); if(f) out.foods.push(f); const t=Math.max(lt,rt); if(t) out.stamps.foods[id]=t; });
+  return out;
+}
+async function gh(path,opts={}){
+  const cfg=syncCfg();
+  const r=await fetch("https://api.github.com"+path,{...opts,headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+cfg.token,...(opts.body?{"Content-Type":"application/json"}:{})}});
+  if(r.status===401) throw new Error("token"); if(r.status===403||r.status===404) throw new Error("perm"); if(!r.ok) throw new Error("http");
+  return r.status===204?null:r.json();
+}
+function syncMsg(t,bad){ const m=document.getElementById("syncMsg"); if(m){ m.textContent=t; m.classList.toggle("bad",!!bad); } const h=document.getElementById("syncDot"); if(h){ h.textContent=t; h.classList.toggle("bad",!!bad); } }
+async function findOrCreateGist(){
+  const cfg=syncCfg(); if(cfg.gistId) return cfg.gistId;
+  for(let page=1;page<=3;page++){ const list=await gh(`/gists?per_page=100&page=${page}`); const g=(list||[]).find(x=>x.files&&x.files[GIST_FILE]); if(g){ cfg.gistId=g.id; saveJSON(SYNC_KEY,cfg); return g.id; } if(!list||list.length<100) break; }
+  const g=await gh("/gists",{method:"POST",body:JSON.stringify({description:"Full Measure data (synced by the app)",public:false,files:{[GIST_FILE]:{content:JSON.stringify({v:1,log:{},foods:[],stamps:{days:{},foods:{}}})}}})});
+  cfg.gistId=g.id; saveJSON(SYNC_KEY,cfg); return g.id;
+}
+let syncing=false, syncAgain=false, syncTimer=null;
+function queueSync(){ if(!syncCfg().token) return; clearTimeout(syncTimer); syncTimer=setTimeout(syncNow,1500); }
+async function syncNow(){
+  if(!live()) return; const cfg=syncCfg(); if(!cfg.token) return;
+  if(syncing){ syncAgain=true; return; } syncing=true; syncMsg("Syncing…");
+  try{
+    const id=await findOrCreateGist();
+    const g=await gh(`/gists/${id}`); const file=g.files&&g.files[GIST_FILE];
+    let remote={log:{},foods:[],stamps:{days:{},foods:{}}};
+    if(file){ let txt=file.content; if(file.truncated && file.raw_url){ txt=await (await fetch(file.raw_url)).text(); } try{ const r=JSON.parse(txt||"{}"); remote={log:r.log||{},foods:r.foods||[],stamps:{days:(r.stamps||{}).days||{},foods:(r.stamps||{}).foods||{}}}; }catch(e){} }
+    const st=stamps(); const local={log:load(),foods:loadCustom(),stamps:{days:st.days,foods:st.foods}};
+    const merged=mergeData(local,remote);
+    log=merged.log; save(); CUSTOM=merged.foods; saveCustom(); refreshFoods(); saveJSON(STAMPS_KEY,merged.stamps);
+    const body=JSON.stringify({v:1,updated:new Date().toISOString(),log:merged.log,foods:merged.foods,stamps:merged.stamps});
+    if(!file || body.length && JSON.stringify({log:remote.log,foods:remote.foods,stamps:remote.stamps})!==JSON.stringify({log:merged.log,foods:merged.foods,stamps:merged.stamps}))
+      await gh(`/gists/${id}`,{method:"PATCH",body:JSON.stringify({files:{[GIST_FILE]:{content:body}}})});
+    cfg.last=Date.now(); saveJSON(SYNC_KEY,{...syncCfg(),last:cfg.last});
+    render(); syncMsg("Synced "+new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}));
+  }catch(e){
+    syncMsg(e.message==="token"?"Sync: GitHub didn't accept the token. Check it in About." : e.message==="perm"?"Sync: the token needs the \"gist\" permission." : "Sync: couldn't reach GitHub. Will retry.", true);
+  }finally{ syncing=false; if(syncAgain){ syncAgain=false; queueSync(); } }
+}
+(function(){
+  const inp=document.getElementById("ghToken"), m=document.getElementById("syncMsg");
+  function show(){ const c=syncCfg(); document.getElementById("syncOff").hidden=!!c.token; document.getElementById("syncOn").hidden=!c.token;
+    if(c.token){ document.getElementById("syncWho").textContent=`Connected with a token ending in ${c.token.slice(-4)}.`; } }
+  show();
+  document.getElementById("ghSave").onclick=()=>{ const t=inp.value.trim(); if(!t){ syncMsg("Paste your GitHub token first.",true); return; }
+    saveJSON(SYNC_KEY,{token:t}); inp.value=""; show(); syncNow(); };
+  document.getElementById("syncNowBtn").onclick=()=>syncNow();
+  document.getElementById("ghRemove").onclick=()=>{ saveJSON(SYNC_KEY,{}); show(); syncMsg("Sync turned off on this device. Your data here is kept."); };
+  if(syncCfg().token){ syncNow(); }
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible" && syncCfg().token) syncNow(); });
+})();
 function closeForm(){ modal.hidden=true; editing=null; }
 form.addEventListener("submit",e=>{
   e.preventDefault(); if(!live()) return;
@@ -708,6 +793,7 @@ form.addEventListener("submit",e=>{
   if(!Object.keys(n).length){ err.textContent="Enter at least one number from the label, such as calories."; err.hidden=false; return; }
   const food={id: editing?editing.id:"c"+Date.now().toString(36), name, unit, cat:document.getElementById("fm-cat").value, step:document.getElementById("fm-whole").checked?1:0.5, n};
   CUSTOM = editing ? CUSTOM.map(x=>x.id===food.id?food:x) : [...CUSTOM, food];
+  touchFood(food.id); queueSync();
   saveCustom(); refreshFoods(); closeForm(); render();
 });
 modal.addEventListener("click",e=>{ if(e.target===modal) closeForm(); });
