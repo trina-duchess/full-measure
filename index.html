@@ -189,6 +189,48 @@ details summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--brand)
 .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .actions .spacer{flex:1}
 .del{color:var(--bad)!important;border-color:var(--bad)!important}
+/* learn (flashcards) */
+.lwrap{max-width:560px;margin:0 auto;display:grid;gap:12px}
+.lctl{display:grid;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+.lrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lbl{font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--muted);width:46px}
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+.seg button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:6px 11px;font-size:13px;font-weight:600}
+.seg button.on{background:var(--brand);border-color:var(--brand);color:var(--on-dark)}
+.lmeta{display:flex;justify-content:space-between;font-size:13px;color:var(--muted)}
+.lbar{height:6px;background:var(--bar);border-radius:3px;overflow:hidden}
+#lfill{height:100%;background:var(--brand);width:0}
+.scene{perspective:1200px}
+.fcard{position:relative;width:100%;height:clamp(300px,52vh,440px);border:0;padding:0;background:none;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.3,.7,.2,1);text-align:left;color:inherit}
+.fcard.flipped{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;border-radius:18px;padding:22px;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;flex-direction:column;gap:12px;overflow:auto}
+.ffront{background:var(--char);color:var(--on-dark);border-top:6px solid var(--brand);justify-content:center}
+.fback{background:var(--card);border:1px solid var(--line);border-top:6px solid var(--brand);transform:rotateY(180deg)}
+.ffront .q{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--on-dark-muted)}
+.ffront .big{font-size:clamp(26px,6vw,36px);font-weight:700;line-height:1.15;text-wrap:balance}
+.ffront .mid{font-size:clamp(18px,4.4vw,22px);line-height:1.35}
+.ffront .hint{position:absolute;bottom:14px;left:22px;font-size:12px;color:var(--on-dark-muted)}
+.fback .ans{font-size:clamp(20px,5vw,26px);font-weight:700;color:var(--brand);line-height:1.2}
+.fback dl{margin:0;display:grid;gap:8px}
+.fback dt{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.fback dd{margin:0;font-size:15px;line-height:1.4}
+.lbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.lbtns .btn{padding:13px;font-size:16px}
+.lagain{border-color:var(--warn)!important;background:var(--warn-bg)!important;color:var(--warn)!important}
+.lgood{border-color:var(--good)!important;background:var(--good-bg)!important;color:var(--good)!important}
+.lbtns .btn:disabled{opacity:.45}
+.lkeys{text-align:center;font-size:12px;color:var(--muted);margin:0}
+.ldone{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;text-align:center;display:grid;gap:10px}
+.ldone h2{margin:0;font-size:20px}
+.ldone .score{font-size:64px;font-weight:700;color:var(--brand);line-height:1;font-variant-numeric:tabular-nums}
+.ldone .quick{justify-content:center;margin:0}
+@media (prefers-reduced-motion:reduce){ .fcard{transition:none} }
+@media (max-width:600px){
+  .fcard{height:clamp(260px,44vh,420px)}
+  .seg button{padding:5px 9px;font-size:12.5px}
+  .lctl{padding:10px;gap:6px}
+  .tab{padding:8px 9px 12px;font-size:14px}
+}
 /* week + about */
 .narrow{max-width:640px}
 .hint{background:var(--char);color:var(--on-dark);border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:12px;line-height:1.45}
@@ -210,6 +252,7 @@ textarea{width:100%;height:110px;border-radius:10px;border:1px solid var(--line)
     <nav class="tabs">
       <button class="tab on" data-t="log" id="tab-log">Log</button>
       <button class="tab" data-t="week" id="tab-week">Week</button>
+      <button class="tab" data-t="learn" id="tab-learn">Learn</button>
       <button class="tab" data-t="about" id="tab-about">About</button>
     </nav>
   </div>
@@ -239,6 +282,24 @@ textarea{width:100%;height:110px;border-radius:10px;border:1px solid var(--line)
       <div class="weekdays" id="weekdays"></div>
       <div id="weekNote" class="hint"></div>
       <div class="panel" id="weekList"></div>
+    </div>
+  </section>
+
+  <section id="learn" hidden>
+    <div class="lwrap">
+      <div class="lctl">
+        <div class="lrow"><span class="lbl">Deck</span><div class="seg" id="seg-ldeck"></div></div>
+        <div class="lrow"><span class="lbl">Ask</span><div class="seg" id="seg-ldir"></div></div>
+        <div class="lrow"><span class="lbl">Order</span><div class="seg" id="seg-lorder"></div></div>
+      </div>
+      <div class="lmeta"><span id="lcount"></span><span id="lscore"></span></div>
+      <div class="lbar"><div id="lfill"></div></div>
+      <div id="lstage">
+        <div class="scene"><button class="fcard" id="fcard" aria-label="Flip card"><div class="face ffront" id="ffront"></div><div class="face fback" id="fback"></div></button></div>
+        <div class="lbtns"><button class="btn lagain" id="lagain" disabled>Again</button><button class="btn lgood" id="lgood" disabled>Got it</button></div>
+        <p class="lkeys">Tap the card or press Space to flip</p>
+      </div>
+      <div class="ldone" id="ldone" hidden></div>
     </div>
   </section>
 
@@ -554,8 +615,9 @@ document.getElementById("prev").onclick=()=>{ day=addDays(day,-1); render(); };
 document.getElementById("next").onclick=()=>{ day=addDays(day,1); render(); };
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===t));
-  ["log","week","about"].forEach(s=>document.getElementById(s).hidden = s!==t.dataset.t);
-  document.getElementById("daynav").hidden = t.dataset.t==="about";
+  ["log","week","learn","about"].forEach(s=>document.getElementById(s).hidden = s!==t.dataset.t);
+  document.getElementById("daynav").hidden = t.dataset.t==="about" || t.dataset.t==="learn";
+  if(t.dataset.t==="learn" && !L.queue.length) startDeck();
   document.getElementById("quick").hidden = t.dataset.t!=="log";
   window.scrollTo(0,0);
 });
@@ -833,6 +895,108 @@ document.getElementById("foods").addEventListener("click",e=>{
   const ed=e.target.closest("[data-edit]"); if(ed){ e.preventDefault(); openForm(ed.dataset.edit); }
 });
 document.getElementById("foods").addEventListener("keydown",e=>{ const ed=e.target.closest("[data-edit]"); if(ed && (e.key==="Enter"||e.key===" ")){ e.preventDefault(); openForm(ed.dataset.edit); } });
+// ----- Learn: flashcards on what each nutrient does, the body systems it supports, and your top sources -----
+const FACTS=[
+ ["Calories","Provide the energy required for metabolism, movement, and organ function.","Whole body energy metabolism, brain, muscles, organs",["kcal"]],
+ ["Protein","Provides amino acids needed to build and repair tissues and produce enzymes and hormones.","Muscles, skin, hair, nails, immune system, organs",["protein"]],
+ ["Fiber","Supports digestion, feeds gut bacteria, and helps regulate blood sugar and cholesterol.","Digestive system, gut microbiome, cardiovascular system",["fiber"]],
+ ["Omega-3 (EPA+DHA)","Anti-inflammatory fats important for brain cell membranes and cardiovascular protection.","Brain, heart, blood vessels, nervous system",["EPADHA"]],
+ ["Calcium","Builds and maintains bone structure and helps muscles and nerves function properly.","Bones, teeth, muscles, nervous system",["Ca"]],
+ ["Vitamin D","Helps absorb calcium and supports immune regulation and muscle function.","Bones, immune system, muscles",["VitD"]],
+ ["Iron","Enables oxygen transport in blood and supports energy production in cells.","Blood, muscles, brain",["Fe"]],
+ ["Magnesium","Supports hundreds of metabolic reactions including muscle relaxation and nerve signaling.","Nervous system, muscles, heart, metabolism",["Mg"]],
+ ["Potassium","Regulates fluid balance, nerve signals, and muscle contractions including heart rhythm.","Heart, muscles, nervous system, kidneys",["K"]],
+ ["Choline","Needed for cell membranes and neurotransmitter production involved in memory and muscle control.","Brain, liver, nervous system",["Chol"]],
+ ["Iodine","Required to produce thyroid hormones that control metabolism and energy regulation.","Thyroid gland, endocrine system",["I"]],
+ ["Zinc","Supports immune defense, wound healing, and DNA synthesis.","Immune system, skin, reproductive system",["Zn"]],
+ ["Vitamin A","Maintains vision and supports immune and skin health.","Eyes, immune system, skin",["VitA"]],
+ ["Vitamin C","Antioxidant that supports collagen production, immune defense, and iron absorption.","Skin, immune system, blood vessels",["VitC"]],
+ ["Vitamin E","Protects cell membranes from oxidative damage.","Skin, cardiovascular system, nervous system",["VitE"]],
+ ["B Vitamins","Help convert food into energy and support nervous system and red blood cell health.","Brain, nervous system, blood cells, metabolism",["B1","B2","B3","B6","Fol","B12"]],
+ ["Polyphenols","Plant compounds that reduce inflammation and support metabolic and cardiovascular health.","Cardiovascular system, cellular protection, gut microbiome",null,["mango","coffee","tea","spin","broc","beans"]],
+ ["Probiotics","Beneficial microbes that support digestion and immune function.","Digestive system, immune system, gut microbiome",null,["ybowl","ysauce"]],
+ ["Water","Maintains fluid balance, supports digestion, helps transport nutrients, regulates body temperature, and enables cellular chemical reactions.","Blood circulation, kidneys, digestive system, skin, joints, brain, all cells",["W"],null,"Water is required for every physiological process in the body. Some comes from food and other drinks; plain water helps fill any gap."],
+];
+const TARGETS=Object.fromEntries(NUTS.map(n=>[n[0],n]));
+function topSources(fact){
+  if(fact[4]) return fact[4].map(id=>BYID[id]).filter(Boolean).map(f=>f.name);
+  const keys=fact[3];
+  const score=f=>keys.reduce((a,k)=>{ const v=f.n[k]||0; const t=TARGETS[k]; return a+(t&&typeof t[3]==="number"?v/t[3]:v/1000); },0)/keys.length;
+  return FOODS.filter(f=>score(f)>0 && !["centrum","calc"].includes(f.id)).sort((a,b)=>score(b)-score(a)).slice(0,4).map(f=>f.name);
+}
+function targetText(fact){
+  const k=fact[3]&&fact[3][0]; const t=k&&TARGETS[k]; if(!t||typeof t[3]!=="number"||fact[3].length>1) return "";
+  return `${fmt(t[3],t[2])} a day${t[4]==="max"?" (limit)":""}`;
+}
+const LKEY="fullmeasure-learn";
+const L={deck:"does",dir:"fwd",order:"shuffle",queue:[],i:0,flipped:false,good:0,again:0,missed:[],total:0,firstTry:new Set(),seen:new Set()};
+try{ const v=JSON.parse(localStorage.getItem(LKEY)||"{}"); ["deck","dir","order"].forEach(k=>{ if(v[k]) L[k]=v[k]; }); }catch(e){}
+const lsave=()=>{ try{ localStorage.setItem(LKEY,JSON.stringify({deck:L.deck,dir:L.dir,order:L.order})); }catch(e){} };
+const DECKS=[["does","What it does"],["systems","Body systems"],["sources","Your sources"],["all","Everything"]];
+function lseg(id,key,opts){ const el=document.getElementById(id); el.innerHTML=opts.map(([v,t])=>`<button data-v="${v}" class="${L[key]===v?"on":""}">${t}</button>`).join("");
+  el.querySelectorAll("button").forEach(b=>b.onclick=()=>{ L[key]=b.dataset.v; lsave(); lcontrols(); startDeck(); }); }
+function lcontrols(){ lseg("seg-ldeck","deck",DECKS); lseg("seg-ldir","dir",[["fwd","Nutrient → answer"],["rev","Answer → nutrient"],["mix","Mixed"]]); lseg("seg-lorder","order",[["list","In order"],["shuffle","Shuffled"]]); }
+function makeCards(){
+  const kinds = L.deck==="all" ? ["does","systems","sources"] : [L.deck];
+  const out=[]; FACTS.forEach((f,i)=>kinds.forEach(k=>out.push({i,k,id:i+":"+k})));
+  return out;
+}
+function lshuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function startDeck(list){
+  let q = list ? list.slice() : makeCards(); if(L.order==="shuffle") lshuffle(q);
+  q.forEach(c=>c.rev = L.dir==="rev" ? true : L.dir==="mix" ? Math.random()<0.5 : false);
+  Object.assign(L,{queue:q,i:0,good:0,again:0,missed:[],total:q.length,firstTry:new Set(),seen:new Set()});
+  document.getElementById("ldone").hidden=true; document.getElementById("lstage").hidden=false; showCard();
+}
+function esc(t){ return String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function showCard(){
+  const card=document.getElementById("fcard"); card.classList.remove("flipped"); L.flipped=false;
+  document.getElementById("lagain").disabled=true; document.getElementById("lgood").disabled=true;
+  const c=L.queue[L.i]; if(!c){ finish(); return; }
+  const f=FACTS[c.i], name=f[0], src=topSources(f).join(", ")||"None in your list yet";
+  const ask={does:["What does", "do in the body?"], systems:["Which body systems does","support?"], sources:["Which of your foods are top sources of",""]}[c.k];
+  const clue={does:f[1], systems:f[2], sources:src}[c.k];
+  const revQ={does:"Which nutrient does this?", systems:"Which nutrient supports these body systems?", sources:"These foods are top sources of which nutrient?"}[c.k];
+  document.getElementById("ffront").innerHTML = c.rev
+    ? `<div class="q">${revQ}</div><div class="mid">${esc(clue)}</div><div class="hint">Tap to flip</div>`
+    : `<div class="q">${ask[0]}</div><div class="big">${esc(name)}${ask[1]?"":"?"}</div>${ask[1]?`<div class="q">${ask[1]}</div>`:""}<div class="hint">Tap to flip</div>`;
+  const tt=targetText(f);
+  document.getElementById("fback").innerHTML = `<div class="ans">${esc(c.rev?name:clue)}</div><dl>
+    ${c.rev||c.k!=="does"?`<div><dt>What it does</dt><dd>${esc(f[1])}</dd></div>`:""}
+    ${c.rev||c.k!=="systems"?`<div><dt>Body systems</dt><dd>${esc(f[2])}${f[5]?" "+esc(f[5]):""}</dd></div>`:""}
+    ${c.rev||c.k!=="sources"?`<div><dt>Top sources in your foods</dt><dd>${esc(src)}</dd></div>`:""}
+    ${tt?`<div><dt>Your daily target</dt><dd>${tt}</dd></div>`:""}</dl>`;
+  document.getElementById("lcount").innerHTML=`Card <b>${Math.min(L.i+1,L.queue.length)}</b> of <b>${L.queue.length}</b>${L.queue.length>L.total?" (with repeats)":""}`;
+  document.getElementById("lscore").innerHTML=`<b>${L.good}</b> got it · <b>${L.again}</b> again`;
+  document.getElementById("lfill").style.width=Math.round(L.i/L.queue.length*100)+"%";
+}
+function lflip(){ if(L.i>=L.queue.length) return; L.flipped=!L.flipped; document.getElementById("fcard").classList.toggle("flipped",L.flipped);
+  if(L.flipped){ document.getElementById("lagain").disabled=false; document.getElementById("lgood").disabled=false; } }
+function answer(ok){
+  if(!L.flipped || L.i>=L.queue.length) return; const c=L.queue[L.i];
+  if(ok){ L.good++; if(!L.seen.has(c.id)) L.firstTry.add(c.id); }
+  else { L.again++; if(!L.missed.some(m=>m.id===c.id)) L.missed.push({...c}); L.queue.push({...c}); }
+  L.seen.add(c.id); L.i++; showCard();
+}
+function finish(){
+  document.getElementById("lstage").hidden=true; const d=document.getElementById("ldone"); d.hidden=false;
+  document.getElementById("lfill").style.width="100%";
+  const deckName=DECKS.find(x=>x[0]===L.deck)[1].toLowerCase();
+  d.innerHTML=`<h2>Deck complete</h2><div class="score">${L.firstTry.size}/${L.total}</div><p class="note">Right on the first try (${deckName}).</p>
+    <div class="quick">${L.missed.length?`<button class="btn" id="lmissed">Review the ${L.missed.length} missed</button>`:""}<button class="btn plain" id="lrestart">Go again</button></div>`;
+  const m=document.getElementById("lmissed"); if(m) m.onclick=()=>startDeck(L.missed.map(x=>({i:x.i,k:x.k,id:x.id})));
+  document.getElementById("lrestart").onclick=()=>startDeck();
+}
+document.getElementById("fcard").onclick=lflip;
+document.getElementById("lagain").onclick=()=>answer(false);
+document.getElementById("lgood").onclick=()=>answer(true);
+document.addEventListener("keydown",e=>{
+  if(document.getElementById("learn").hidden || !modal.hidden || e.target.closest("input,select,textarea")) return;
+  if(e.key===" "||e.key==="Enter"){ if(e.target.closest(".seg,.tab,.lbtns,.ldone")) return; e.preventDefault(); lflip(); }
+  else if(L.flipped && (e.key==="ArrowRight"||e.key==="2")) answer(true);
+  else if(L.flipped && (e.key==="ArrowLeft"||e.key==="1")) answer(false);
+});
+lcontrols();
 render();
 </script>
 </body>
