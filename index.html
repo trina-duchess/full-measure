@@ -505,7 +505,8 @@ function sortedNeeds(t){
 // Suggestions: foods from your list that close today's gaps without pushing a limit over.
 const ONCE_A_DAY = ["centrum","calc"];
 function eatenToday(id){ const L=dayLog(day); return Object.values(L).some(m=>(m||{})[id]); }
-function fitsLimits(f,t){ return NUTS.filter(n=>n[4]==="max").every(n=>(t[n[0]]||0)+(f.n[n[0]]||0) <= target(n,t)); }
+// A food is skipped only if it would add to a limit (sodium, added sugar, caffeine) and push it over.
+function fitsLimits(f,t){ return NUTS.filter(n=>n[4]==="max").every(n=>!(f.n[n[0]]>0) || (t[n[0]]||0)+f.n[n[0]] <= target(n,t)); }
 function candidates(t){ return FOODS.filter(f=>fitsLimits(f,t) && !(ONCE_A_DAY.includes(f.id) && eatenToday(f.id))); }
 function sugFor(x,t){
   const gap=target(x.n,t)-x.v; const key=x.n[0];
