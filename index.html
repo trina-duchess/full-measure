@@ -160,6 +160,7 @@ main{max-width:1320px;margin:0 auto;padding-block:14px 48px}
 .ritem{display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:8px 10px;margin-top:5px;font-size:14px}
 .ritem:hover{border-color:var(--brand);color:var(--brand)}
 .pick{display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:12px}
+.linkbtn{border:0;background:none;color:var(--brand);font-weight:700;text-decoration:underline;padding:0;font-size:inherit}
 .addrow{padding:10px 14px;border-bottom:1px solid var(--line)}
 .addfood{width:100%}
 .btn.solid{background:var(--brand);color:var(--on-dark)}
@@ -249,7 +250,7 @@ textarea{width:100%;height:110px;border-radius:10px;border:1px solid var(--line)
       <div class="card">
         <h3>USDA food lookup key</h3>
         <p class="note">Paste the key USDA emailed you. It's saved on this device only, never in the app's code. Without it, lookups use USDA's shared demo key (a few per hour).</p>
-        <div class="keyrow"><input id="usdaKey" type="text" autocomplete="off" spellcheck="false" placeholder="Paste your USDA key"><button class="btn" id="usdaSave">Save key</button></div>
+        <div class="keyrow"><input id="usdaKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your USDA key"><button class="btn" id="usdaSave">Save key</button></div>
         <p class="note" id="usdaMsg"></p>
       </div>
       <div class="card">
@@ -691,8 +692,12 @@ async function usdaPick(id,desc){
   }catch(e){ usdaErr(lookupError(e)); }
 }
 (function(){ const inp=document.getElementById("usdaKey"), m=document.getElementById("usdaMsg");
-  try{ const k=localStorage.getItem(KEY_STORE); if(k){ inp.value=k; m.textContent="Your key is saved on this device."; } }catch(e){}
-  document.getElementById("usdaSave").onclick=()=>{ const k=inp.value.trim(); try{ if(k) localStorage.setItem(KEY_STORE,k); else localStorage.removeItem(KEY_STORE); m.textContent=k?"Saved on this device.":"Key removed; using the demo key."; }catch(e){ m.textContent="Couldn't save on this device."; } };
+  function show(){ let k=null; try{ k=localStorage.getItem(KEY_STORE); }catch(e){}
+    m.innerHTML = k ? `Key saved on this device (ending in ${k.slice(-4).replace(/[<>&"]/g,"")}). <button class="linkbtn" id="usdaRemove">Remove key</button>` : "No key saved; lookups use the shared demo key.";
+    const rb=document.getElementById("usdaRemove"); if(rb) rb.onclick=()=>{ try{ localStorage.removeItem(KEY_STORE); }catch(e){} show(); }; }
+  show();
+  document.getElementById("usdaSave").onclick=()=>{ const k=inp.value.trim(); if(!k){ m.textContent="Paste your key first."; return; }
+    try{ localStorage.setItem(KEY_STORE,k); inp.value=""; show(); }catch(e){ m.textContent="Couldn't save on this device."; } };
 })();
 function closeForm(){ modal.hidden=true; editing=null; }
 form.addEventListener("submit",e=>{
