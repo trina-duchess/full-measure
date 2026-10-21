@@ -163,6 +163,10 @@ main{max-width:1320px;margin:0 auto;padding-block:14px 48px}
 .linkbtn{border:0;background:none;color:var(--brand);font-weight:700;text-decoration:underline;padding:0;font-size:inherit}
 .syncdot{font-size:12px;color:var(--muted)}
 .syncdot.bad,#syncMsg.bad{color:var(--bad);font-weight:600}
+.resize{display:grid;gap:6px;padding:10px;border:1px solid var(--brand);border-radius:12px;background:var(--brand-soft)}
+.resize .rl{font-weight:700;font-size:14px}
+.rrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:14px}
+.rrow input{width:80px;font:inherit;font-size:15px;padding:7px 8px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink)}
 .addrow{padding:10px 14px;border-bottom:1px solid var(--line)}
 .addfood{width:100%}
 .btn.solid{background:var(--brand);color:var(--on-dark)}
@@ -292,7 +296,12 @@ function loadCustom(){ try { const v=JSON.parse(localStorage.getItem(FOODS_KEY)|
 function saveCustom(){ try { localStorage.setItem(FOODS_KEY, JSON.stringify(CUSTOM)); } catch(e){} }
 let CUSTOM = loadCustom();
 let FOODS = [], BYID = {};
-function refreshFoods(){ FOODS=[...BASE_FOODS, ...CUSTOM.map(f=>({...f,custom:true}))]; BYID=Object.fromEntries(FOODS.map(f=>[f.id,f])); }
+// Your added foods, plus your edits to the built-in foods (an edit is saved under the built-in food's id and replaces it).
+function refreshFoods(){
+  const cmap=Object.fromEntries(CUSTOM.map(c=>[c.id,c])); const baseIds=new Set(BASE_FOODS.map(b=>b.id));
+  FOODS=[...BASE_FOODS.map(b=>cmap[b.id]?{...cmap[b.id],base:true,edited:true}:{...b,base:true}), ...CUSTOM.filter(c=>!baseIds.has(c.id)).map(f=>({...f,custom:true}))];
+  BYID=Object.fromEntries(FOODS.map(f=>[f.id,f]));
+}
 refreshFoods();
 const CATS = ["Meats","Veggies","Sides & Snacks","Supplements","Drinks"];
 const MEALS = [["breakfast","Breakfast"],["lunch","Lunch"],["dinner","Dinner"],["snacks","Snacks"]];
@@ -414,7 +423,7 @@ function renderFoods(){
   document.getElementById("foods").innerHTML =
     `<div class="ptitle">Foods <small>${any?"Highlighted = fills a gap":"Drag into a meal"}</small></div><div class="addrow"><button class="btn addfood" id="addFood">+ Add a food</button></div>` +
     CATS.map(c=>`<h4 class="cat">${c}</h4>`+FOODS.filter(f=>f.cat===c).map(f=>{ const h=map[f.id];
-      return `<button class="fitem${h?" helps":""}" data-add="${f.id}" aria-label="Add ${f.name}" title="${fullList(f,1)}"><span class="nm"><b>${f.name}${top.has(f.id)?' <span class="toppick">Top pick</span>':""}</b><small>${f.unit}</small>${nutLine(f,1)}${h?`<span class="need">Adds ${h.join(", ")}</span>`:""}</span>${f.custom?`<span class="edit" role="button" tabindex="0" data-edit="${f.id}" aria-label="Edit ${f.name}">Edit</span>`:""}<span class="grip" aria-hidden="true">⋮⋮</span></button>`; }).join("")).join("");
+      return `<button class="fitem${h?" helps":""}" data-add="${f.id}" aria-label="Add ${f.name}" title="${fullList(f,1)}"><span class="nm"><b>${f.name}${top.has(f.id)?' <span class="toppick">Top pick</span>':""}</b><small>${f.unit}</small>${nutLine(f,1)}${h?`<span class="need">Adds ${h.join(", ")}</span>`:""}</span><span class="edit" role="button" tabindex="0" data-edit="${f.id}" aria-label="Edit ${f.name}">Edit</span><span class="grip" aria-hidden="true">⋮⋮</span></button>`; }).join("")).join("");
 }
 function renderMeals(){
   document.getElementById("meals").innerHTML = MEALS.map(([k,label])=>{
@@ -568,27 +577,36 @@ function field(f,v){ return `<label class="fld"><span>${f[1]}${f[2]?` <em>${f[2]
 let editing=null;
 function openForm(id){
   if(!live()) return;
-  editing = id ? CUSTOM.find(f=>f.id===id) : null; const f=editing||{n:{},cat:"Sides & Snacks"};
+  editing = id ? BYID[id] : null; const f=editing||{n:{},cat:"Sides & Snacks"};
+  const isBase=!!(editing&&editing.base), lead=parseLead(f.unit||"");
   form.innerHTML = `<h3>${editing?"Edit food":"Add a food"}</h3>
-    <p class="note">Fill from a label photo, look the food up in USDA, or type the numbers for one serving. Leave blank anything you don't have.</p>
+    <p class="note">${editing?"Change the serving size below, or edit any name, group or number. Your changes sync to your other devices.":"Fill from a label photo, look the food up in USDA, or type the numbers for one serving. Leave blank anything you don't have."}</p>
     <label class="fld wide"><span>Food name</span><input id="fm-name" required maxlength="60" value="${(f.name||"").replace(/"/g,"&quot;")}" placeholder="e.g. Cottage cheese, lowfat"></label>
     <label class="fld wide"><span>Serving size</span><input id="fm-unit" required maxlength="40" value="${(f.unit||"").replace(/"/g,"&quot;")}" placeholder="e.g. ½ cup (113 g)"></label>
     <label class="fld"><span>Group</span><select id="fm-cat">${CATS.map(c=>`<option${c===f.cat?" selected":""}>${c}</option>`).join("")}</select></label>
-    <div class="photo"><label class="btn solid" for="fm-photo">Fill from a label photo</label><input type="file" id="fm-photo" accept="image/*" hidden><span class="pmsg" id="fm-photo-msg">Snap or choose a photo of the Nutrition Facts panel.</span></div>
-    <div class="usda"><div class="keyrow"><input id="fm-q" type="search" placeholder="Or look it up in USDA, e.g. broccoli raw" value="${(f.name||"").replace(/"/g,"&quot;")}"><button type="button" class="btn" id="fm-search">Look up</button></div><div id="fm-results"></div></div>
+    ${editing?`<div class="resize"><span class="rl">Change the serving size</span><div class="rrow">from <input type="number" inputmode="decimal" step="any" min="0" id="fm-from" value="${lead.n}" aria-label="Current amount"> to <input type="number" inputmode="decimal" step="any" min="0" id="fm-to" aria-label="New amount"> <button type="button" class="btn" id="fm-apply">Apply</button></div><span class="pmsg" id="fm-rmsg">For example, from 2 to 3 eggs. Every number below and the serving size text change to match.</span></div>`:""}
+    <div class="photo"${isBase?" hidden":""}><label class="btn solid" for="fm-photo">Fill from a label photo</label><input type="file" id="fm-photo" accept="image/*" hidden><span class="pmsg" id="fm-photo-msg">Snap or choose a photo of the Nutrition Facts panel.</span></div>
+    <div class="usda"${isBase?" hidden":""}><div class="keyrow"><input id="fm-q" type="search" placeholder="Or look it up in USDA, e.g. broccoli raw" value="${(f.name||"").replace(/"/g,"&quot;")}"><button type="button" class="btn" id="fm-search">Look up</button></div><div id="fm-results"></div></div>
     <label class="fld check"><input type="checkbox" id="fm-whole"${f.step===1?" checked":""}> <span>Count whole servings only</span></label>
     <h4>Nutrition Facts (per serving)</h4>
     <div class="grid">${FIELDS.filter(x=>x[3]).map(x=>field(x,f.n[x[0]])).join("")}</div>
     <details${FIELDS.some(x=>!x[3]&&f.n[x[0]])?" open":""}><summary>More nutrients (optional)</summary><div class="grid">${FIELDS.filter(x=>!x[3]).map(x=>field(x,f.n[x[0]])).join("")}</div></details>
     <p class="err" id="fm-err" hidden></p>
-    <div class="actions">${editing?`<button type="button" class="btn plain del" id="fm-del">Delete food</button>`:""}<span class="spacer"></span><button type="button" class="btn plain" id="fm-cancel">Cancel</button><button type="submit" class="btn solid">${editing?"Save changes":"Add food"}</button></div>`;
+    <div class="actions">${editing&&(!isBase||editing.edited)?`<button type="button" class="btn plain del" id="fm-del">${isBase?"Reset to original":"Delete food"}</button>`:""}<span class="spacer"></span><button type="button" class="btn plain" id="fm-cancel">Cancel</button><button type="submit" class="btn solid">${editing?"Save changes":"Add food"}</button></div>`;
   modal.hidden=false; document.getElementById("fm-name").focus();
   document.getElementById("fm-search").onclick=()=>usdaSearch();
   document.getElementById("fm-q").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); usdaSearch(); } });
   document.getElementById("fm-photo").onchange=e=>{ const file=e.target.files&&e.target.files[0]; e.target.value=""; if(file) readLabel(file); };
   document.getElementById("fm-cancel").onclick=closeForm;
+  const ap=document.getElementById("fm-apply");
+  if(ap) ap.onclick=()=>{ const from=parseFloat(document.getElementById("fm-from").value), to=parseFloat(document.getElementById("fm-to").value), rm=document.getElementById("fm-rmsg");
+    if(!(from>0)||!(to>0)){ rm.textContent="Enter both amounts, for example from 2 to 3."; rm.classList.add("bad"); return; }
+    const k=to/from; FIELDS.forEach(x=>{ const el=document.getElementById("fm-"+x[0]); const v=parseFloat(el.value); if(v>0){ const nv=v*k; el.value=+nv.toFixed(nv>=10?1:3); el.classList.add("filled"); } });
+    const un=document.getElementById("fm-unit"); un.value=resizeUnit(un.value,from,to); un.classList.add("filled");
+    document.getElementById("fm-from").value=to; document.getElementById("fm-to").value="";
+    rm.classList.remove("bad"); rm.textContent="Updated. Check the numbers, then tap Save changes. Days you've already logged will use the new serving too."; };
   const del=document.getElementById("fm-del"); let armedDel=0;
-  if(del) del.onclick=()=>{ if(Date.now()-armedDel<4000){ CUSTOM=CUSTOM.filter(x=>x.id!==editing.id); touchFood(editing.id); saveCustom(); queueSync(); refreshFoods(); closeForm(); render(); return; } armedDel=Date.now(); del.textContent="Tap again to delete"; };
+  if(del) del.onclick=()=>{ if(Date.now()-armedDel<4000){ CUSTOM=CUSTOM.filter(x=>x.id!==editing.id); touchFood(editing.id); saveCustom(); queueSync(); refreshFoods(); closeForm(); render(); return; } armedDel=Date.now(); del.textContent=isBase?"Tap again to reset":"Tap again to delete"; };
 }
 // ----- Read a Nutrition Facts photo -----
 // In the Claude preview, Claude reads the photo. On your own site (GitHub), text recognition runs on the phone.
@@ -784,6 +802,13 @@ async function syncNow(){
   if(syncCfg().token){ syncNow(); }
   document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible" && syncCfg().token) syncNow(); });
 })();
+// Serving amounts: read and rewrite the leading number in text like "2 large eggs", "1¼ cup", "½ cup".
+const FRAC={"½":.5,"¼":.25,"¾":.75,"⅓":1/3,"⅔":2/3,"⅛":.125};
+function parseLead(u){ const m=String(u).match(/^\s*(\d+(?:\.\d+)?)?\s*([½¼¾⅓⅔⅛])?/); const w=m&&m[1]?parseFloat(m[1]):0, fr=m&&m[2]?FRAC[m[2]]:0;
+  return (w||fr)?{n:+(w+fr).toFixed(3),len:m[0].length}:{n:1,len:0}; }
+function fmtAmt(n){ const w=Math.floor(n+1e-9), r=+(n-w).toFixed(3); const sym=Object.entries(FRAC).find(([,v])=>Math.abs(v-r)<0.01);
+  if(r<0.01) return String(w); if(sym) return (w?String(w):"")+sym[0]; return String(+n.toFixed(2)); }
+function resizeUnit(u,from,to){ const L=parseLead(u); if(L.len) return (fmtAmt(L.n*to/from)+" "+u.slice(L.len).trim()).trim(); return `${fmtAmt(to/from)} × ${u}`; }
 function closeForm(){ modal.hidden=true; editing=null; }
 form.addEventListener("submit",e=>{
   e.preventDefault(); if(!live()) return;
@@ -792,7 +817,7 @@ form.addEventListener("submit",e=>{
   const n={}; FIELDS.forEach(x=>{ const v=parseFloat(document.getElementById("fm-"+x[0]).value); if(v>0) n[x[0]]=v; });
   if(!Object.keys(n).length){ err.textContent="Enter at least one number from the label, such as calories."; err.hidden=false; return; }
   const food={id: editing?editing.id:"c"+Date.now().toString(36), name, unit, cat:document.getElementById("fm-cat").value, step:document.getElementById("fm-whole").checked?1:0.5, n};
-  CUSTOM = editing ? CUSTOM.map(x=>x.id===food.id?food:x) : [...CUSTOM, food];
+  CUSTOM = CUSTOM.some(x=>x.id===food.id) ? CUSTOM.map(x=>x.id===food.id?food:x) : [...CUSTOM, food];
   touchFood(food.id); queueSync();
   saveCustom(); refreshFoods(); closeForm(); render();
 });
