@@ -167,6 +167,9 @@ main{max-width:1320px;margin:0 auto;padding-block:14px 48px}
 .resize .rl{font-weight:700;font-size:14px}
 .rrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:14px}
 .rrow input{width:80px;font:inherit;font-size:15px;padding:7px 8px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink)}
+.hrow2{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.hrow2 small{color:var(--muted);font-size:12px}
+#hist{display:grid;gap:6px;margin-top:8px}
 .addrow{padding:10px 14px;border-bottom:1px solid var(--line)}
 .addfood{width:100%}
 .btn.solid{background:var(--brand);color:var(--on-dark)}
@@ -231,6 +234,16 @@ details summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--brand)
   .lctl{padding:10px;gap:6px}
   .tab{padding:8px 9px 12px;font-size:14px}
 }
+.nrow.needs{cursor:help}
+.nrow.needs:hover,.nrow.needs:focus{background:var(--brand-soft);outline:none}
+.tip{position:fixed;z-index:45;width:290px;max-width:calc(100vw - 24px);background:var(--card);color:var(--ink);border:1px solid var(--line);border-top:4px solid var(--brand);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.28);padding:10px 12px;font-size:13px;pointer-events:none}
+.tip h6{margin:0 0 6px;font-size:13px}
+.tip h6 small{display:block;font-weight:400;color:var(--muted);margin-top:1px}
+.tip ul{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+.tip li{display:flex;justify-content:space-between;gap:10px}
+.tip li span{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.tip li .ok{color:var(--good);font-weight:700}
+.tip p{margin:6px 0 0;color:var(--muted);font-size:12px}
 /* week + about */
 .narrow{max-width:640px}
 .hint{background:var(--char);color:var(--on-dark);border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:12px;line-height:1.45}
@@ -262,6 +275,7 @@ textarea{width:100%;height:110px;border-radius:10px;border:1px solid var(--line)
     <button class="arrow" id="prev" aria-label="Previous day">‹</button>
     <div class="d"><b id="dlabel"></b><small id="dsub"></small></div>
     <button class="arrow" id="next" aria-label="Next day">›</button>
+    <button class="btn plain" id="copyToday" hidden>Copy this day to today</button>
     <span class="syncdot" id="syncDot"></span>
     <div class="quick" id="quick">
       <button class="btn plain" id="qClear">Clear day</button>
@@ -324,7 +338,8 @@ textarea{width:100%;height:110px;border-radius:10px;border:1px solid var(--line)
         </div>
         <div id="syncOn" hidden>
           <p class="note" id="syncWho"></p>
-          <div class="keyrow" style="flex-wrap:wrap"><button class="btn" id="syncNowBtn">Sync now</button><button class="btn plain" id="ghRemove">Turn off sync here</button></div>
+          <div class="keyrow" style="flex-wrap:wrap"><button class="btn" id="syncNowBtn">Sync now</button><button class="btn plain" id="histBtn">Recover a day</button><button class="btn plain" id="ghRemove">Turn off sync here</button></div>
+          <div id="hist" hidden></div>
         </div>
         <p class="note" id="syncMsg"></p>
       </div>
@@ -420,6 +435,11 @@ const iso = d => { const z=new Date(d); z.setMinutes(z.getMinutes()-z.getTimezon
 const parse = s => { const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); };
 const addDays = (s,n) => { const d=parse(s); d.setDate(d.getDate()+n); return iso(d); };
 let day = iso(new Date());
+let todayAtLoad = day;
+// If the app stays open past midnight, move "Today" forward instead of logging into yesterday.
+function checkRollover(){ const now=iso(new Date()); if(now!==todayAtLoad){ if(day===todayAtLoad) day=now; todayAtLoad=now; if(typeof render==="function") render(); } }
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") checkRollover(); });
+window.addEventListener("focus",checkRollover); setInterval(checkRollover,60000);
 
 const dayLog = d => log[d] || {};
 const hasAny = d => Object.values(dayLog(d)).some(m=>Object.keys(m||{}).length);
@@ -458,6 +478,7 @@ function setQty(meal,id,q){
 const qty = (meal,id) => (dayLog(day)[meal]||{})[id]||0;
 
 function renderNav(){
+  const ct=document.getElementById("copyToday"); if(ct) ct.hidden = !(day!==iso(new Date()) && hasAny(day));
   const d=parse(day), today=iso(new Date());
   document.getElementById("dlabel").textContent = day===today?"Today":d.toLocaleDateString(undefined,{weekday:"long"});
   document.getElementById("dsub").textContent = d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
@@ -520,6 +541,23 @@ function bestNext(open,t){
     open.forEach(x=>{ const g=f.n[x.n[0]]||0; if(!g) return; const gap=target(x.n,t)-x.v; score+=Math.min(g,gap)/target(x.n,t); if(g/gap>=0.25) helps.push(x.n[1]); });
     return {f,score,helps}; }).filter(o=>o.score>0 && o.helps.length).sort((a,b)=>b.score-a.score).slice(0,3);
 }
+// Hover (or tap) a "still needed" nutrient to see which of your foods close its gap.
+let tipEl=null;
+function hideTip(){ if(tipEl){ tipEl.remove(); tipEl=null; } }
+function showTip(row){
+  hideTip(); const key=row.dataset.need, n=NUTS.find(x=>x[0]===key); if(!n) return;
+  const t=totals(day), gap=target(n,t)-(t[key]||0); if(gap<=0) return;
+  const list=candidates(t).filter(f=>(f.n[key]||0)>0).sort((a,b)=>(b.n[key]||0)-(a.n[key]||0)).slice(0,6);
+  tipEl=document.createElement("div"); tipEl.className="tip"; tipEl.setAttribute("role","tooltip");
+  tipEl.innerHTML=`<h6>Foods that close your ${esc(n[1])} gap<small>${fmt(gap,n[2])} to go today</small></h6>`+(list.length?`<ul>`+list.map(f=>{ const g=f.n[key], k=Math.ceil(gap/g-1e-9);
+      return `<li>${esc(f.name)}<span>+${fmt(g,n[2])} · ${g>=gap?'<b class="ok">✓ covers it</b>':k<=6?`×${k} to cover`:"helps"}</span></li>`; }).join("")+`</ul><p>Per serving. Drag one into a meal to add it.</p>`
+      :`<p>None of your foods add ${esc(n[1])} without going over a limit.</p>`);
+  document.body.appendChild(tipEl);
+  const r=row.getBoundingClientRect(), w=tipEl.offsetWidth, h=tipEl.offsetHeight;
+  let left=r.left-w-10; if(left<8) left=Math.min(window.innerWidth-w-8, Math.max(8,r.left));
+  let top=left===r.left-w-10 ? r.top : r.bottom+6; if(top+h>window.innerHeight-8) top=Math.max(8,window.innerHeight-h-8);
+  tipEl.style.left=left+"px"; tipEl.style.top=top+"px";
+}
 function renderTracker(){
   const t=totals(day), needs=sortedNeeds(t);
   const open=needs.filter(x=>x.s.pct<1), met=needs.filter(x=>x.s.pct>=1);
@@ -527,7 +565,7 @@ function renderTracker(){
   document.getElementById("tracker").innerHTML =
     `<div class="ptitle">Today's nutrients <small>vs. your targets</small></div>
      <div class="tsum"><div><b>${fmt(t.kcal||0)}</b><small>calories</small></div><div><b>${open.length}</b><small>still needed</small></div></div>
-     ${open.length?`<div class="tgroup">Still needed · biggest gap first</div>`+open.map(x=>nRow(x.n,x.v,t)).join(""):""}
+     ${open.length?`<div class="tgroup">Still needed · biggest gap first</div>`+open.map(x=>nRow(x.n,x.v,t).replace('<div class="nrow ','<div tabindex="0" data-need="'+x.n[0]+'" class="nrow needs ')).join(""):""}
      ${met.length?`<div class="tgroup">Met</div>`+met.map(x=>nRow(x.n,x.v,t)).join(""):""}
      <div class="tgroup">Limits · stay under</div>${limits.map(n=>nRow(n,t[n[0]]||0,t)).join("")}
      <div class="tnote">Omega-3 (EPA+DHA): ${fmt(t.EPADHA||0,"g")} today. There's no daily target; the Dietary Guidelines advise 8 oz of seafood a week.</div>`;
@@ -613,6 +651,9 @@ qc.onclick=()=>{ if(!live()) return;
   if(Date.now()-armed<4000){ log=load(); delete log[day]; touchDay(day); save(); queueSync(); armed=0; qc.textContent="Cleared"; render(); setTimeout(()=>qc.textContent="Clear day",1500); return; }
   armed=Date.now(); qc.textContent="Tap again to clear this day"; setTimeout(()=>{ if(armed && Date.now()-armed>=4000) qc.textContent="Clear day"; },4100); };
 document.getElementById("prev").onclick=()=>{ day=addDays(day,-1); render(); };
+document.getElementById("copyToday").onclick=()=>{ if(!live()) return; const today=iso(new Date()); log=load(); const src=log[day]||{}; const T=log[today]=log[today]||{};
+  for(const m in src){ T[m]=T[m]||{}; for(const id in src[m]) T[m][id]=(T[m][id]||0)+src[m][id]; }
+  touchDay(today); save(); queueSync(); day=today; render(); };
 document.getElementById("next").onclick=()=>{ day=addDays(day,1); render(); };
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===t));
@@ -807,8 +848,9 @@ const STAMPS_KEY="fullmeasure-stamps-v1", SYNC_KEY="fullmeasure-sync-v1", GIST_F
 function loadJSON(k,d){ try{ const v=JSON.parse(localStorage.getItem(k)||"null"); return v&&typeof v==="object"?v:d; }catch(e){ return d; } }
 function saveJSON(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
 function stamps(){ const s=loadJSON(STAMPS_KEY,{}); s.days=s.days||{}; s.foods=s.foods||{}; return s; }
-function touchDay(d){ const s=stamps(); s.days[d]=Date.now(); saveJSON(STAMPS_KEY,s); }
-function touchFood(id){ const s=stamps(); s.foods[id]=Date.now(); saveJSON(STAMPS_KEY,s); }
+let editSeq=0;
+function touchDay(d){ editSeq++; const s=stamps(); s.days[d]=Date.now(); saveJSON(STAMPS_KEY,s); }
+function touchFood(id){ editSeq++; const s=stamps(); s.foods[id]=Date.now(); saveJSON(STAMPS_KEY,s); }
 function syncCfg(){ return loadJSON(SYNC_KEY,{}); }
 const countItems = dayObj => Object.values(dayObj||{}).reduce((n,m)=>n+Object.keys(m||{}).length,0);
 function mergeData(local, remote){
@@ -825,7 +867,7 @@ function mergeData(local, remote){
 }
 async function gh(path,opts={}){
   const cfg=syncCfg();
-  const r=await fetch("https://api.github.com"+path,{...opts,headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+cfg.token,...(opts.body?{"Content-Type":"application/json"}:{})}});
+  const r=await fetch("https://api.github.com"+path,{cache:"no-store",...opts,headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+cfg.token,...(opts.body?{"Content-Type":"application/json"}:{})}});
   if(r.status===401) throw new Error("token"); if(r.status===403||r.status===404) throw new Error("perm"); if(!r.ok) throw new Error("http");
   return r.status===204?null:r.json();
 }
@@ -837,10 +879,36 @@ async function findOrCreateGist(){
   cfg.gistId=g.id; saveJSON(SYNC_KEY,cfg); return g.id;
 }
 let syncing=false, syncAgain=false, syncTimer=null;
+// Every sync saves a version in your Gist; this lists recent versions so you can bring back a day.
+async function showHistory(){
+  const box=document.getElementById("hist"); box.hidden=false;
+  const pick=`<label class="fld"><span>Day to recover</span><input type="date" id="histDay" value="${day}"></label>`;
+  box.innerHTML=pick+`<p class="pmsg">Loading saved versions…</p>`;
+  try{
+    const id=await findOrCreateGist(); const commits=(await gh(`/gists/${id}/commits?per_page=40`))||[];
+    const dsel=()=>document.getElementById("histDay").value;
+    const render2=async()=>{
+      const d=dsel(); const rows=[];
+      box.innerHTML=pick.replace(`value="${day}"`,`value="${d}"`)+`<p class="pmsg">Checking versions for ${d}…</p>`;
+      document.getElementById("histDay").onchange=render2;
+      let last=null;
+      for(const c of commits.slice(0,40)){
+        let v; try{ v=await gh(`/gists/${id}/${c.version}`); }catch(e){ continue; }
+        const f=v.files&&v.files[GIST_FILE]; if(!f) continue; let data={}; try{ data=JSON.parse(f.content||"{}"); }catch(e){}
+        const dl=(data.log||{})[d]; const n=countItems(dl); const sig=JSON.stringify(dl||null);
+        if(n && sig!==last){ rows.push({c,dl,n}); last=sig; } if(rows.length>=8) break;
+      }
+      box.innerHTML=pick.replace(`value="${day}"`,`value="${d}"`)+(rows.length?`<p class="pmsg">Saved versions of ${d} (newest first). Restoring replaces that day on all your devices.</p>`+rows.map((r,i)=>`<div class="hrow2"><span>${new Date(r.c.committed_at).toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})} · ${r.n} item${r.n>1?"s":""}<br><small>${Object.entries(r.dl).map(([m,o])=>m+": "+Object.keys(o).map(i=>BYID[i]?BYID[i].name:i).join(", ")).join(" · ")}</small></span><button class="btn" data-hv="${i}">Restore</button></div>`).join(""):`<p class="pmsg">No saved versions of ${d} have any food logged.</p>`);
+      document.getElementById("histDay").onchange=render2;
+      box.querySelectorAll("[data-hv]").forEach(b=>b.onclick=()=>{ const r=rows[+b.dataset.hv]; log=load(); log[d]=JSON.parse(JSON.stringify(r.dl)); touchDay(d); save(); render(); queueSync(); b.textContent="Restored"; b.disabled=true; });
+    };
+    await render2();
+  }catch(e){ box.innerHTML=`<p class="pmsg bad">Couldn't load your saved versions from GitHub.</p>`; }
+}
 function queueSync(){ if(!syncCfg().token) return; clearTimeout(syncTimer); syncTimer=setTimeout(syncNow,1500); }
 async function syncNow(){
   if(!live()) return; const cfg=syncCfg(); if(!cfg.token) return;
-  if(syncing){ syncAgain=true; return; } syncing=true; syncMsg("Syncing…");
+  if(syncing){ syncAgain=true; return; } syncing=true; syncMsg("Syncing…"); const seq0=editSeq;
   try{
     const id=await findOrCreateGist();
     const g=await gh(`/gists/${id}`); const file=g.files&&g.files[GIST_FILE];
@@ -848,6 +916,7 @@ async function syncNow(){
     if(file){ let txt=file.content; if(file.truncated && file.raw_url){ txt=await (await fetch(file.raw_url)).text(); } try{ const r=JSON.parse(txt||"{}"); remote={log:r.log||{},foods:r.foods||[],stamps:{days:(r.stamps||{}).days||{},foods:(r.stamps||{}).foods||{}}}; }catch(e){} }
     const st=stamps(); const local={log:load(),foods:loadCustom(),stamps:{days:st.days,foods:st.foods}};
     const merged=mergeData(local,remote);
+    if(editSeq!==seq0){ syncAgain=true; return; } // you changed something while this sync was running; start over with your latest
     log=merged.log; save(); CUSTOM=merged.foods; saveCustom(); refreshFoods(); saveJSON(STAMPS_KEY,merged.stamps);
     const body=JSON.stringify({v:1,updated:new Date().toISOString(),log:merged.log,foods:merged.foods,stamps:merged.stamps});
     if(!file || body.length && JSON.stringify({log:remote.log,foods:remote.foods,stamps:remote.stamps})!==JSON.stringify({log:merged.log,foods:merged.foods,stamps:merged.stamps}))
@@ -866,6 +935,7 @@ async function syncNow(){
   document.getElementById("ghSave").onclick=()=>{ const t=inp.value.trim(); if(!t){ syncMsg("Paste your GitHub token first.",true); return; }
     saveJSON(SYNC_KEY,{token:t}); inp.value=""; show(); syncNow(); };
   document.getElementById("syncNowBtn").onclick=()=>syncNow();
+  document.getElementById("histBtn").onclick=showHistory;
   document.getElementById("ghRemove").onclick=()=>{ saveJSON(SYNC_KEY,{}); show(); syncMsg("Sync turned off on this device. Your data here is kept."); };
   if(syncCfg().token){ syncNow(); }
   document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible" && syncCfg().token) syncNow(); });
@@ -998,6 +1068,16 @@ document.addEventListener("keydown",e=>{
   else if(L.flipped && (e.key==="ArrowLeft"||e.key==="1")) answer(false);
 });
 lcontrols();
+(function(){ const tr=document.getElementById("tracker"), nb=document.getElementById("needbar");
+  tr.addEventListener("mouseover",e=>{ const r=e.target.closest("[data-need]"); if(r && (!tipEl || tipEl.dataset.k!==r.dataset.need)){ showTip(r); if(tipEl) tipEl.dataset.k=r.dataset.need; } });
+  tr.addEventListener("mouseleave",hideTip);
+  tr.addEventListener("mouseout",e=>{ if(!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest("[data-need]")) hideTip(); });
+  tr.addEventListener("focusin",e=>{ const r=e.target.closest("[data-need]"); if(r) showTip(r); });
+  tr.addEventListener("focusout",hideTip);
+  tr.addEventListener("click",e=>{ const r=e.target.closest("[data-need]"); if(r){ if(tipEl && tipEl.dataset.k===r.dataset.need){ hideTip(); } else { showTip(r); if(tipEl) tipEl.dataset.k=r.dataset.need; } } });
+  tr.addEventListener("scroll",hideTip,{passive:true}); window.addEventListener("scroll",hideTip,{passive:true});
+  document.addEventListener("pointerdown",e=>{ if(tipEl && !e.target.closest("[data-need]")) hideTip(); });
+})();
 render();
 </script>
 </body>
