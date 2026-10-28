@@ -244,6 +244,27 @@ details summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--brand)
 .tip li span{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
 .tip li .ok{color:var(--good);font-weight:700}
 .tip p{margin:6px 0 0;color:var(--muted);font-size:12px}
+/* guide */
+.gwrap{display:grid;gap:10px}
+.gtitle{margin:0;font-size:20px;text-wrap:balance}
+.gfilter{font:inherit;font-size:15px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);max-width:360px}
+.gtable-wrap{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:auto}
+.gtable{width:100%;border-collapse:collapse;font-size:14px;line-height:1.4}
+.gtable th{background:var(--char);color:var(--on-dark);text-align:left;padding:10px 12px;font-size:13px;position:sticky;top:0}
+.gtable td{padding:10px 12px;border-top:1px solid var(--line);vertical-align:top}
+.gtable td:first-child{white-space:nowrap}
+.gtable td small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.gtable td:nth-child(4){color:var(--brand)}
+.gtable tbody tr:nth-child(even) td{background:var(--bg)}
+@media (max-width:760px){
+  .gtable thead{display:none}
+  .gtable, .gtable tbody, .gtable tr, .gtable td{display:block;width:100%}
+  .gtable tr{border-top:4px solid var(--line);padding:6px 0}
+  .gtable td{border-top:0;padding:4px 12px;white-space:normal!important;background:none!important}
+  .gtable td::before{content:attr(data-l);display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+  .gtable td:first-child::before{display:none}
+  .gtable td:first-child b{font-size:17px}
+}
 /* week + about */
 .narrow{max-width:640px}
 .hint{background:var(--char);color:var(--on-dark);border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:12px;line-height:1.45}
@@ -265,6 +286,7 @@ textarea{width:100%;height:110px;border-radius:10px;border:1px solid var(--line)
     <nav class="tabs">
       <button class="tab on" data-t="log" id="tab-log">Log</button>
       <button class="tab" data-t="week" id="tab-week">Week</button>
+      <button class="tab" data-t="guide" id="tab-guide">Guide</button>
       <button class="tab" data-t="learn" id="tab-learn">Learn</button>
       <button class="tab" data-t="about" id="tab-about">About</button>
     </nav>
@@ -314,6 +336,15 @@ textarea{width:100%;height:110px;border-radius:10px;border:1px solid var(--line)
         <p class="lkeys">Tap the card or press Space to flip</p>
       </div>
       <div class="ldone" id="ldone" hidden></div>
+    </div>
+  </section>
+
+  <section id="guide" hidden>
+    <div class="gwrap">
+      <h2 class="gtitle">Nutrients, What They Do, and Where to Get Them</h2>
+      <p class="note">"In your plan" comes from your food list and updates when you add or edit foods. "Other good sources" are foods you could add, from the NIH Office of Dietary Supplements.</p>
+      <input id="gfilter" class="gfilter" type="search" placeholder="Filter, e.g. iron or bones" aria-label="Filter nutrients">
+      <div class="gtable-wrap"><table class="gtable"><thead><tr><th>Nutrient</th><th>What it does in the body</th><th>Body systems supported</th><th>In your plan</th><th>Other good sources</th></tr></thead><tbody id="gbody"></tbody></table></div>
     </div>
   </section>
 
@@ -664,8 +695,9 @@ document.getElementById("copyToday").onclick=()=>{ if(!live()) return; const tod
 document.getElementById("next").onclick=()=>{ day=addDays(day,1); render(); };
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===t));
-  ["log","week","learn","about"].forEach(s=>document.getElementById(s).hidden = s!==t.dataset.t);
-  document.getElementById("daynav").hidden = t.dataset.t==="about" || t.dataset.t==="learn";
+  ["log","week","guide","learn","about"].forEach(s=>document.getElementById(s).hidden = s!==t.dataset.t);
+  document.getElementById("daynav").hidden = ["about","learn","guide"].includes(t.dataset.t);
+  if(t.dataset.t==="guide") renderGuide();
   if(t.dataset.t==="learn" && !L.queue.length) startDeck();
   document.getElementById("quick").hidden = t.dataset.t!=="log";
   window.scrollTo(0,0);
@@ -991,8 +1023,10 @@ document.getElementById("foods").addEventListener("keydown",e=>{ const ed=e.targ
 const FACTS=[
  ["Calories","Provide the energy required for metabolism, movement, and organ function.","Whole body energy metabolism, brain, muscles, organs",["kcal"]],
  ["Protein","Provides amino acids needed to build and repair tissues and produce enzymes and hormones.","Muscles, skin, hair, nails, immune system, organs",["protein"]],
+ ["Carbohydrate","Main fuel for the brain and red blood cells, and spares protein from being burned for energy.","Brain, nervous system, muscles, red blood cells",["carb"]],
  ["Fiber","Supports digestion, feeds gut bacteria, and helps regulate blood sugar and cholesterol.","Digestive system, gut microbiome, cardiovascular system",["fiber"]],
  ["Omega-3 (EPA+DHA)","Anti-inflammatory fats important for brain cell membranes and cardiovascular protection.","Brain, heart, blood vessels, nervous system",["EPADHA"]],
+ ["Omega-3 ALA","The essential plant omega-3 fat; the body can't make it and converts a little into EPA and DHA.","Heart, blood vessels, brain",["ALA"]],
  ["Calcium","Builds and maintains bone structure and helps muscles and nerves function properly.","Bones, teeth, muscles, nervous system",["Ca"]],
  ["Vitamin D","Helps absorb calcium and supports immune regulation and muscle function.","Bones, immune system, muscles",["VitD"]],
  ["Iron","Enables oxygen transport in blood and supports energy production in cells.","Blood, muscles, brain",["Fe"]],
@@ -1004,17 +1038,51 @@ const FACTS=[
  ["Vitamin A","Maintains vision and supports immune and skin health.","Eyes, immune system, skin",["VitA"]],
  ["Vitamin C","Antioxidant that supports collagen production, immune defense, and iron absorption.","Skin, immune system, blood vessels",["VitC"]],
  ["Vitamin E","Protects cell membranes from oxidative damage.","Skin, cardiovascular system, nervous system",["VitE"]],
+ ["Vitamin K","Needed for normal blood clotting and helps build bone.","Blood, bones",["VitK"]],
+ ["Selenium","Part of antioxidant enzymes; supports thyroid hormone activity and immune function.","Thyroid gland, immune system, cells",["Se"]],
+ ["Thiamin (B1)","Helps turn carbohydrate into energy and keeps nerves and muscles, including the heart, working.","Nervous system, muscles, heart, brain",["B1"]],
+ ["Folate","Needed to make DNA and new cells, including red blood cells.","Blood cells, nervous system, cell growth",["Fol"]],
+ ["Vitamin B12","Keeps nerve cells and red blood cells healthy and helps make DNA. Absorption from food drops after 50.","Nervous system, blood, brain",["B12"]],
  ["B Vitamins","Help convert food into energy and support nervous system and red blood cell health.","Brain, nervous system, blood cells, metabolism",["B1","B2","B3","B6","Fol","B12"]],
  ["Polyphenols","Plant compounds that reduce inflammation and support metabolic and cardiovascular health.","Cardiovascular system, cellular protection, gut microbiome",null,["mango","coffee","tea","spin","broc","beans"]],
  ["Probiotics","Beneficial microbes that support digestion and immune function.","Digestive system, immune system, gut microbiome",null,["ybowl","ysauce"]],
  ["Water","Maintains fluid balance, supports digestion, helps transport nutrients, regulates body temperature, and enables cellular chemical reactions.","Blood circulation, kidneys, digestive system, skin, joints, brain, all cells",["W"],null,"Water is required for every physiological process in the body. Some comes from food and other drinks; plain water helps fill any gap."],
 ];
+// Good sources you don't eat yet, drawn from the NIH Office of Dietary Supplements food tables and the Dietary Guidelines.
+const OTHERS={
+ "Calories":"Oatmeal, whole-grain bread, avocado, olive oil, almonds",
+ "Protein":"Cottage cheese, Greek yogurt, lentils, tofu, canned tuna, turkey",
+ "Carbohydrate":"Oatmeal, brown rice, sweet potatoes, whole-grain bread, bananas",
+ "Fiber":"Lentils, chickpeas, raspberries, pears, oats, chia seeds",
+ "Omega-3 (EPA+DHA)":"Trout, mackerel, herring, anchovies, canned light tuna",
+ "Omega-3 ALA":"Ground flaxseed, chia seeds, walnuts, canola oil, edamame",
+ "Calcium":"Milk, cheese, fortified soy milk, tofu made with calcium, kale, bok choy",
+ "Vitamin D":"Fortified milk, trout, UV-treated mushrooms, fortified orange juice",
+ "Iron":"Fortified breakfast cereal, lentils, white beans, tofu, oysters",
+ "Magnesium":"Pumpkin seeds, almonds, cashews, edamame, oatmeal",
+ "Potassium":"Dried apricots, lentils, acorn squash, bananas, milk",
+ "Choline":"Soybeans, cod, chicken breast, quinoa, milk",
+ "Iodine":"Cod, shrimp, seaweed (nori), milk, cheese",
+ "Zinc":"Oysters, crab, pumpkin seeds, cashews, chickpeas",
+ "Vitamin A":"Sweet potatoes, carrots, butternut squash, cantaloupe, red peppers",
+ "Vitamin C":"Red bell peppers, oranges, kiwi, strawberries, Brussels sprouts",
+ "Vitamin E":"Sunflower seeds, almonds, hazelnuts, peanut butter, avocado",
+ "Vitamin K":"Kale, collard greens, Brussels sprouts, edamame, canola oil",
+ "Selenium":"Brazil nuts (1 nut covers a day, so go easy), tuna, shrimp, cottage cheese",
+ "Thiamin (B1)":"Fortified breakfast cereal, enriched egg noodles, trout, sunflower seeds, green peas, lentils",
+ "Folate":"Lentils, asparagus, Brussels sprouts, avocado, fortified cereal",
+ "Vitamin B12":"Clams, trout, canned tuna, milk, fortified nutritional yeast",
+ "B Vitamins":"Fortified cereal, whole grains, lentils, milk, poultry",
+ "Polyphenols":"Berries, apples, dark chocolate, green tea, onions, olive oil",
+ "Probiotics":"Kefir, unpasteurized sauerkraut, kimchi, miso, aged cheeses",
+ "Water":"Plain or sparkling water, cucumber, watermelon, broth-based soups",
+};
 const TARGETS=Object.fromEntries(NUTS.map(n=>[n[0],n]));
-function topSources(fact){
+function topSources(fact,withSupps,max){
   if(fact[4]) return fact[4].map(id=>BYID[id]).filter(Boolean).map(f=>f.name);
   const keys=fact[3];
   const score=f=>keys.reduce((a,k)=>{ const v=f.n[k]||0; const t=TARGETS[k]; return a+(t&&typeof t[3]==="number"?v/t[3]:v/1000); },0)/keys.length;
-  return FOODS.filter(f=>score(f)>0 && !["centrum","calc"].includes(f.id)).sort((a,b)=>score(b)-score(a)).slice(0,4).map(f=>f.name);
+  return FOODS.filter(f=>score(f)>0 && (withSupps || !["centrum","calc","salt"].includes(f.id))).sort((a,b)=>score(b)-score(a)).slice(0,max||4).map(f=>f.name);
 }
 function targetText(fact){
   const k=fact[3]&&fact[3][0]; const t=k&&TARGETS[k]; if(!t||typeof t[3]!=="number"||fact[3].length>1) return "";
@@ -1088,6 +1156,20 @@ document.addEventListener("keydown",e=>{
   else if(L.flipped && (e.key==="ArrowRight"||e.key==="2")) answer(true);
   else if(L.flipped && (e.key==="ArrowLeft"||e.key==="1")) answer(false);
 });
+// ----- Guide: the reference table -----
+// Leave out "other" suggestions you already have in your food list (e.g. walnuts once you've added them).
+function otherSources(name){
+  const mine=FOODS.map(f=>f.name.toLowerCase());
+  return (OTHERS[name]||"").split(", ").filter(x=>{ const k=x.toLowerCase().replace(/\s*\(.*\)/,"").trim(); return !mine.some(m=>m.includes(k)); }).join(", ");
+}
+function renderGuide(){
+  const q=(document.getElementById("gfilter").value||"").toLowerCase().trim();
+  const rows=FACTS.filter(f=>!q || [f[0],f[1],f[2],OTHERS[f[0]]||"",topSources(f,true,5).join(" ")].join(" ").toLowerCase().includes(q));
+  document.getElementById("gbody").innerHTML = rows.map(f=>{ const tt=targetText(f);
+    return `<tr><td data-l="Nutrient"><b>${esc(f[0])}</b>${tt?`<small>${tt}</small>`:""}</td><td data-l="What it does">${esc(f[1])}</td><td data-l="Body systems">${esc(f[2])}</td><td data-l="In your plan">${esc(topSources(f,true,5).join(", ")||"None yet")}</td><td data-l="Other good sources">${esc(otherSources(f[0]))}</td></tr>`; }).join("")
+    || `<tr><td colspan="5">No nutrients match "${esc(q)}".</td></tr>`;
+}
+document.getElementById("gfilter").addEventListener("input",renderGuide);
 lcontrols();
 (function(){ const tr=document.getElementById("tracker"), nb=document.getElementById("needbar");
   tr.addEventListener("mouseover",e=>{ const r=e.target.closest("[data-need]"); if(r && (!tipEl || tipEl.dataset.k!==r.dataset.need)){ showTip(r); if(tipEl) tipEl.dataset.k=r.dataset.need; } });
