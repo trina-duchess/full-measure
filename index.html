@@ -265,6 +265,19 @@ details summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--brand)
   .gtable td:first-child::before{display:none}
   .gtable td:first-child b{font-size:17px}
 }
+/* collapsible sections */
+.fold{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;font-family:inherit}
+.fold .chev{flex:none;width:9px;height:9px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin:0 4px 4px;transition:transform .15s}
+.fold[aria-expanded="false"] .chev{transform:rotate(-45deg);margin-bottom:0}
+.fold em{font-style:normal;font-weight:400;opacity:.7;margin-left:4px}
+button.cat{background:var(--card);color:var(--brand);padding:10px 14px;border-top:1px solid var(--line);font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+button.cat:hover{background:var(--brand-soft)}
+.gapchip{margin-left:auto;white-space:nowrap;font-size:10.5px;letter-spacing:.04em;text-transform:none;background:var(--brand);color:var(--on-dark);border-radius:999px;padding:2px 8px}
+.mhead.fold{cursor:pointer}
+.meal.closed{min-height:0}
+button.tgroup{background:var(--card);color:var(--muted);padding:9px 12px}
+button.tgroup:hover{background:var(--bg)}
+.overflag{color:var(--bad);text-transform:uppercase}
 /* week + about */
 .narrow{max-width:640px}
 .hint{background:var(--char);color:var(--on-dark);border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:12px;line-height:1.45}
@@ -542,12 +555,21 @@ function nutLine(f,q){
 function fullList(f,q){
   return NUTS.filter(n=>(f.n[n[0]]||0)>0).map(n=>`${n[1]}: ${fmt(f.n[n[0]]*q,n[2])}`).join("\n");
 }
+// Open/closed sections (food groups, meals, tracker groups), remembered on this device.
+const FOLD_KEY="fullmeasure-folds";
+let FOLD=(()=>{ try{ return JSON.parse(localStorage.getItem(FOLD_KEY)||"{}")||{}; }catch(e){ return {}; } })();
+const FOLD_DEFAULT={"cat":true,"meal":false,"trk:met":true};   // food groups and "Met" start closed
+function isFolded(kind,id){ const k=kind+":"+id; return k in FOLD ? FOLD[k] : (k in FOLD_DEFAULT ? FOLD_DEFAULT[k] : !!FOLD_DEFAULT[kind]); }
+function toggleFold(kind,id){ FOLD[kind+":"+id]=!isFolded(kind,id); try{ localStorage.setItem(FOLD_KEY,JSON.stringify(FOLD)); }catch(e){} render(); }
+function foldHead(kind,id,cls,inner){ const f=isFolded(kind,id); return `<button class="${cls} fold" data-fold="${kind}" data-fid="${esc(id)}" aria-expanded="${!f}">${inner}<span class="chev" aria-hidden="true"></span></button>`; }
 function renderFoods(){
   const {map,top,any}=helpMap();
   document.getElementById("foods").innerHTML =
     `<div class="ptitle">Foods <small>${any?"Highlighted = fills a gap":"Drag into a meal"}</small></div><div class="addrow"><button class="btn addfood" id="addFood">+ Add a food</button></div>` +
-    CATS.map(c=>`<h4 class="cat">${c}</h4>`+FOODS.filter(f=>f.cat===c).map(f=>{ const h=map[f.id];
-      return `<button class="fitem${h?" helps":""}" data-add="${f.id}" aria-label="Add ${f.name}" title="${fullList(f,1)}"><span class="nm"><b>${f.name}${top.has(f.id)?' <span class="toppick">Top pick</span>':""}</b><small>${f.unit}</small>${nutLine(f,1)}${h?`<span class="need">Adds ${h.join(", ")}</span>`:""}</span><span class="edit" role="button" tabindex="0" data-edit="${f.id}" aria-label="Edit ${f.name}">Edit</span><span class="grip" aria-hidden="true">⋮⋮</span></button>`; }).join("")).join("");
+    CATS.map(c=>{ const list=FOODS.filter(f=>f.cat===c), nh=list.filter(f=>map[f.id]).length, closed=isFolded("cat",c);
+      return foldHead("cat",c,"cat",`<span>${c} <em>${list.length}</em></span>${nh?`<span class="gapchip">${nh} fill${nh>1?"":"s"} a gap</span>`:""}`)
+      + `<div class="catbody"${closed?" hidden":""}>` + list.map(f=>{ const h=map[f.id];
+      return `<button class="fitem${h?" helps":""}" data-add="${f.id}" aria-label="Add ${f.name}" title="${fullList(f,1)}"><span class="nm"><b>${f.name}${top.has(f.id)?' <span class="toppick">Top pick</span>':""}</b><small>${f.unit}</small>${nutLine(f,1)}${h?`<span class="need">Adds ${h.join(", ")}</span>`:""}</span><span class="edit" role="button" tabindex="0" data-edit="${f.id}" aria-label="Edit ${f.name}">Edit</span><span class="grip" aria-hidden="true">⋮⋮</span></button>`; }).join("") + `</div>`; }).join("");
 }
 function renderMeals(){
   document.getElementById("meals").innerHTML = MEALS.map(([k,label])=>{
@@ -555,7 +577,8 @@ function renderMeals(){
     const rows = ids.length ? ids.map(id=>{ const f=BYID[id]; if(!f) return ""; const st=f.step||0.5;
       return `<div class="mrow" title="${fullList(f,m[id])}"><div class="nm"><b>${f.name}</b><small>${f.unit}${m[id]!==1?` × ${qfmt(m[id])}`:""}</small>${nutLine(f,m[id])}</div><div class="step"><button data-m="${k}" data-f="${id}" data-d="${-st}" aria-label="Less ${f.name}">−</button><span>${qfmt(m[id])}</span><button data-m="${k}" data-f="${id}" data-d="${st}" aria-label="More ${f.name}">+</button><button class="rm" data-m="${k}" data-rm="${id}" aria-label="Remove ${f.name}">×</button></div></div>`; }).join("")
       : `<div class="empty">Drag foods here.</div>`;
-    return `<div class="meal" data-meal="${k}"><div class="mhead"><span><b>${label}</b><br><small>${fmt(mealKcal(k))} cal</small></span></div>${rows}</div>`;
+    const closed=isFolded("meal",k);
+    return `<div class="meal${closed?" closed":""}" data-meal="${k}">${foldHead("meal",k,"mhead",`<span><b>${label}</b><br><small>${fmt(mealKcal(k))} cal${ids.length?` · ${ids.length} item${ids.length>1?"s":""}`:""}</small></span>`)}<div class="mbody"${closed?" hidden":""}>${rows}</div></div>`;
   }).join("");
 }
 function sortedNeeds(t){
@@ -603,9 +626,9 @@ function renderTracker(){
   document.getElementById("tracker").innerHTML =
     `<div class="ptitle">Today's nutrients <small>vs. your targets</small></div>
      <div class="tsum"><div><b>${fmt(t.kcal||0)}</b><small>calories</small></div><div><b>${open.length}</b><small>still needed</small></div></div>
-     ${open.length?`<div class="tgroup">Still needed · biggest gap first</div>`+open.map(x=>nRow(x.n,x.v,t).replace('<div class="nrow ','<div tabindex="0" data-need="'+x.n[0]+'" class="nrow needs ')).join(""):""}
-     ${met.length?`<div class="tgroup">Met</div>`+met.map(x=>nRow(x.n,x.v,t)).join(""):""}
-     <div class="tgroup">Limits · stay under</div>${limits.map(n=>nRow(n,t[n[0]]||0,t)).join("")}
+     ${open.length?foldHead("trk","need","tgroup",`<span>Still needed · biggest gap first <em>${open.length}</em></span>`)+`<div${isFolded("trk","need")?" hidden":""}>`+open.map(x=>nRow(x.n,x.v,t).replace('<div class="nrow ','<div tabindex="0" data-need="'+x.n[0]+'" class="nrow needs ')).join("")+`</div>`:""}
+     ${met.length?foldHead("trk","met","tgroup",`<span>Met <em>${met.length}</em></span>`)+`<div${isFolded("trk","met")?" hidden":""}>`+met.map(x=>nRow(x.n,x.v,t)).join("")+`</div>`:""}
+     ${foldHead("trk","lim","tgroup",`<span>Limits · stay under${limits.some(n=>status(n,t[n[0]]||0,t).cls==="bad")?' <b class="overflag">over</b>':""}</span>`)}<div${isFolded("trk","lim")?" hidden":""}>${limits.map(n=>nRow(n,t[n[0]]||0,t)).join("")}</div>
      <div class="tnote">Omega-3 (EPA+DHA): ${fmt(t.EPADHA||0,"g")} today. There's no daily target; the Dietary Guidelines advise 8 oz of seafood a week.</div>`;
   document.getElementById("needbar").innerHTML = open.length
     ? `<b>Still need:</b>`+open.slice(0,5).map(x=>`<span class="chip ${x.s.cls}">${x.n[1]} ${Math.floor(x.s.pct*100)}%</span>`).join("")+(open.length>5?`<span class="chip lo">+${open.length-5} more</span>`:"")
@@ -1170,6 +1193,7 @@ function renderGuide(){
     || `<tr><td colspan="5">No nutrients match "${esc(q)}".</td></tr>`;
 }
 document.getElementById("gfilter").addEventListener("input",renderGuide);
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-fold]"); if(b && !e.target.closest("[data-add],[data-edit]")) toggleFold(b.dataset.fold,b.dataset.fid); });
 lcontrols();
 (function(){ const tr=document.getElementById("tracker"), nb=document.getElementById("needbar");
   tr.addEventListener("mouseover",e=>{ const r=e.target.closest("[data-need]"); if(r && (!tipEl || tipEl.dataset.k!==r.dataset.need)){ showTip(r); if(tipEl) tipEl.dataset.k=r.dataset.need; } });
