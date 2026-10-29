@@ -278,6 +278,8 @@ button.cat:hover{background:var(--brand-soft)}
 button.tgroup{background:var(--card);color:var(--muted);padding:9px 12px}
 button.tgroup:hover{background:var(--bg)}
 .overflag{color:var(--bad);text-transform:uppercase}
+.mprot{color:inherit}
+.mprot.low{color:#ffb3b3;font-weight:700}
 /* week + about */
 .narrow{max-width:640px}
 .hint{background:var(--char);color:var(--on-dark);border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:12px;line-height:1.45}
@@ -376,6 +378,12 @@ textarea{width:100%;height:110px;border-radius:10px;border:1px solid var(--line)
         <p class="note">Daily targets are the National Academies' Dietary Reference Intakes for women 51–70 (RDA, or AI where no RDA exists), as published in the NIH Office of Dietary Supplements fact sheets. Sodium and added-sugar limits come from the Dietary Guidelines for Americans; the caffeine limit is FDA guidance. Food values come from USDA FoodData Central and your own product labels. Iodine values are approximate, and the pasta is an estimate.</p>
       </div>
       <div class="card">
+        <h3>Your weight</h3>
+        <p class="note">Sets your protein goal for building muscle: 1.4 g per kg of body weight, the middle of the 1.2–1.6 g/kg range that strength-training studies support. Until you enter a weight, the goal is 90 g. Saved on this device.</p>
+        <div class="keyrow"><input id="wtIn" type="number" inputmode="decimal" min="60" max="500" step="0.1" placeholder="Weight in pounds"><button class="btn" id="wtSave">Save</button></div>
+        <p class="note" id="wtMsg"></p>
+      </div>
+      <div class="card">
         <h3>Sync across devices</h3>
         <div id="syncOff">
           <p class="note">Paste a GitHub token with the <b>gist</b> permission. Your log and added foods will be kept in a private Gist and shared by every device you connect. The token is saved on this device only.</p>
@@ -433,7 +441,7 @@ const CATS = ["Meats","Veggies","Sides & Snacks","Supplements","Drinks"];
 const MEALS = [["breakfast","Breakfast"],["lunch","Lunch"],["dinner","Dinner"],["snacks","Snacks"]];
 const NUTS = [
   // key, label, unit, target, kind, total-intake upper limit
-  ["protein","Protein","g",46,"min"],
+  ["protein","Protein","g","protein","min"],
   ["fiber","Fiber","g",21,"min"],
   ["W","Water","oz",91,"min"],
   ["carb","Carbohydrate","g",130,"min"],
@@ -499,9 +507,15 @@ function totals(d){
     for (const k in f.n) t[k]=(t[k]||0)+f.n[k]*q; }
   return t;
 }
+function mealProtein(meal){ let g=0; const m=dayLog(day)[meal]||{}; for (const id in m){ const f=BYID[id]; if(f) g+=(f.n.protein||0)*m[id]; } return g; }
 function mealKcal(meal){ let k=0; const m=dayLog(day)[meal]||{}; for (const id in m){ const f=BYID[id]; if(f) k+=(f.n.kcal||0)*m[id]; } return k; }
 // Added sugar and saturated fat limits are each 10% of calories (Dietary Guidelines), figured on at least 1,600 calories.
-const target = (n,t) => n[3]==="sugar" ? Math.max(t.kcal||0,1600)*0.10/4 : n[3]==="satfat" ? Math.max(t.kcal||0,1600)*0.10/9 : n[3];
+// Protein goal for building muscle while strength training: 1.4 g per kg of body weight (middle of the 1.2–1.6 g/kg
+// range shown to support muscle gain), or 90 g until a weight is entered.
+const WEIGHT_KEY="fullmeasure-weight-lb";
+function weightLb(){ try{ const v=parseFloat(localStorage.getItem(WEIGHT_KEY)); return v>50&&v<600?v:null; }catch(e){ return null; } }
+function protTarget(){ const w=weightLb(); return w ? Math.round(w/2.2046*1.4) : 90; }
+const target = (n,t) => n[3]==="protein" ? protTarget() : n[3]==="sugar" ? Math.max(t.kcal||0,1600)*0.10/4 : n[3]==="satfat" ? Math.max(t.kcal||0,1600)*0.10/9 : n[3];
 function fmt(v,unit){ if(v==null) return "–"; const d=v>=100?0:v>=1?1:2; return (+v).toLocaleString(undefined,{maximumFractionDigits:d})+(unit?" "+unit:""); }
 const qfmt = q => Number.isInteger(q) ? String(q) : q.toFixed(1).replace(/\.0$/,"");
 function status(n,v,t){
@@ -579,7 +593,7 @@ function renderMeals(){
       return `<div class="mrow" title="${fullList(f,m[id])}"><div class="nm"><b>${f.name}</b><small>${f.unit}${m[id]!==1?` × ${qfmt(m[id])}`:""}</small>${nutLine(f,m[id])}</div><div class="step"><button data-m="${k}" data-f="${id}" data-d="${-st}" aria-label="Less ${f.name}">−</button><span>${qfmt(m[id])}</span><button data-m="${k}" data-f="${id}" data-d="${st}" aria-label="More ${f.name}">+</button><button class="rm" data-m="${k}" data-rm="${id}" aria-label="Remove ${f.name}">×</button></div></div>`; }).join("")
       : `<div class="empty">Drag foods here.</div>`;
     const closed=isFolded("meal",k);
-    return `<div class="meal${closed?" closed":""}" data-meal="${k}">${foldHead("meal",k,"mhead",`<span><b>${label}</b><br><small>${fmt(mealKcal(k))} cal${ids.length?` · ${ids.length} item${ids.length>1?"s":""}`:""}</small></span>`)}<div class="mbody"${closed?" hidden":""}>${rows}</div></div>`;
+    return `<div class="meal${closed?" closed":""}" data-meal="${k}">${foldHead("meal",k,"mhead",`<span><b>${label}</b><br><small>${fmt(mealKcal(k))} cal · <span class="mprot${ids.length&&k!=="snacks"&&mealProtein(k)<25?" low":""}">${fmt(mealProtein(k))} g protein</span>${ids.length?` · ${ids.length} item${ids.length>1?"s":""}`:""}</small></span>`)}<div class="mbody"${closed?" hidden":""}>${rows}</div></div>`;
   }).join("");
 }
 function sortedNeeds(t){
@@ -1109,8 +1123,9 @@ function topSources(fact,withSupps,max){
   return FOODS.filter(f=>score(f)>0 && (withSupps || !["centrum","calc","salt"].includes(f.id))).sort((a,b)=>score(b)-score(a)).slice(0,max||4).map(f=>f.name);
 }
 function targetText(fact){
-  const k=fact[3]&&fact[3][0]; const t=k&&TARGETS[k]; if(!t||typeof t[3]!=="number"||fact[3].length>1) return "";
-  return `${fmt(t[3],t[2])} a day${t[4]==="max"?" (limit)":""}`;
+  const k=fact[3]&&fact[3][0]; const t=k&&TARGETS[k]; if(!t||fact[3].length>1) return "";
+  const v = t[3]==="protein" ? protTarget() : t[3]; if(typeof v!=="number") return "";
+  return `${fmt(v,t[2])} a day${t[4]==="max"?" (limit)":""}${t[3]==="protein"?" (muscle-building goal)":""}`;
 }
 const LKEY="fullmeasure-learn";
 const L={deck:"does",dir:"fwd",order:"shuffle",queue:[],i:0,flipped:false,good:0,again:0,missed:[],total:0,firstTry:new Set(),seen:new Set()};
@@ -1195,6 +1210,12 @@ function renderGuide(){
 }
 document.getElementById("gfilter").addEventListener("input",renderGuide);
 document.addEventListener("click",e=>{ const b=e.target.closest("[data-fold]"); if(b && !e.target.closest("[data-add],[data-edit]")) toggleFold(b.dataset.fold,b.dataset.fid); });
+(function(){ const inp=document.getElementById("wtIn"), m=document.getElementById("wtMsg");
+  const show=()=>{ const w=weightLb(); m.textContent = w ? `Saved: ${w} lb. Your protein goal is ${protTarget()} g a day, about ${Math.round(protTarget()/3)} g per meal.` : `No weight saved. Your protein goal is 90 g a day, about 30 g per meal.`; };
+  show();
+  document.getElementById("wtSave").onclick=()=>{ const v=parseFloat(inp.value); if(!(v>50&&v<600)){ m.textContent="Enter your weight in pounds, for example 150."; return; }
+    try{ localStorage.setItem(WEIGHT_KEY,String(v)); }catch(e){} inp.value=""; show(); render(); };
+})();
 lcontrols();
 (function(){ const tr=document.getElementById("tracker"), nb=document.getElementById("needbar");
   tr.addEventListener("mouseover",e=>{ const r=e.target.closest("[data-need]"); if(r && (!tipEl || tipEl.dataset.k!==r.dataset.need)){ showTip(r); if(tipEl) tipEl.dataset.k=r.dataset.need; } });
