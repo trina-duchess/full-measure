@@ -1058,8 +1058,6 @@ form.addEventListener("submit",e=>{
   touchFood(food.id); queueSync();
   saveCustom(); refreshFoods(); closeForm(); render();
 });
-modal.addEventListener("click",e=>{ if(e.target===modal) closeForm(); });
-document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !modal.hidden) closeForm(); });
 document.getElementById("foods").addEventListener("click",e=>{
   if(e.target.closest("#addFood")){ openForm(null); return; }
   const ed=e.target.closest("[data-edit]"); if(ed){ e.preventDefault(); openForm(ed.dataset.edit); }
