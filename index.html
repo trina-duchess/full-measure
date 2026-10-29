@@ -566,7 +566,7 @@ function renderFoods(){
   const {map,top,any}=helpMap();
   document.getElementById("foods").innerHTML =
     `<div class="ptitle">Foods <small>${any?"Highlighted = fills a gap":"Drag into a meal"}</small></div><div class="addrow"><button class="btn addfood" id="addFood">+ Add a food</button></div>` +
-    CATS.map(c=>{ const list=FOODS.filter(f=>f.cat===c), nh=list.filter(f=>map[f.id]).length, closed=isFolded("cat",c);
+    CATS.map(c=>{ const list=FOODS.filter(f=>f.cat===c).sort((a,b)=>(map[b.id]?1:0)-(map[a.id]?1:0) || a.name.localeCompare(b.name)), nh=list.filter(f=>map[f.id]).length, closed=isFolded("cat",c);
       return foldHead("cat",c,"cat",`<span>${c} <em>${list.length}</em></span>${nh?`<span class="gapchip">${nh} fill${nh>1?"":"s"} a gap</span>`:""}`)
       + `<div class="catbody"${closed?" hidden":""}>` + list.map(f=>{ const h=map[f.id];
       return `<button class="fitem${h?" helps":""}" data-add="${f.id}" aria-label="Add ${f.name}" title="${fullList(f,1)}"><span class="nm"><b>${f.name}${top.has(f.id)?' <span class="toppick">Top pick</span>':""}</b><small>${f.unit}</small>${nutLine(f,1)}${h?`<span class="need">Adds ${h.join(", ")}</span>`:""}</span><span class="edit" role="button" tabindex="0" data-edit="${f.id}" aria-label="Edit ${f.name}">Edit</span><span class="grip" aria-hidden="true">⋮⋮</span></button>`; }).join("") + `</div>`; }).join("");
@@ -1187,7 +1187,7 @@ function otherSources(name){
 }
 function renderGuide(){
   const q=(document.getElementById("gfilter").value||"").toLowerCase().trim();
-  const rows=FACTS.filter(f=>!q || [f[0],f[1],f[2],OTHERS[f[0]]||"",topSources(f,true,5).join(" ")].join(" ").toLowerCase().includes(q));
+  const rows=[...FACTS].sort((a,b)=>a[0].localeCompare(b[0])).filter(f=>!q || [f[0],f[1],f[2],OTHERS[f[0]]||"",topSources(f,true,5).join(" ")].join(" ").toLowerCase().includes(q));
   document.getElementById("gbody").innerHTML = rows.map(f=>{ const tt=targetText(f);
     return `<tr><td data-l="Nutrient"><b>${esc(f[0])}</b>${tt?`<small>${tt}</small>`:""}</td><td data-l="What it does">${esc(f[1])}</td><td data-l="Body systems">${esc(f[2])}</td><td data-l="In your plan">${esc(topSources(f,true,5).join(", ")||"None yet")}</td><td data-l="Other good sources">${esc(otherSources(f[0]))}</td></tr>`; }).join("")
     || `<tr><td colspan="5">No nutrients match "${esc(q)}".</td></tr>`;
