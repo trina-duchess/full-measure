@@ -611,7 +611,8 @@ function sortedNeeds(t){
 const ONCE_A_DAY = ["centrum","calc"];
 function eatenToday(id){ const L=dayLog(day); return Object.values(L).some(m=>(m||{})[id]); }
 // A food is skipped only if it would add to a limit (sodium, added sugar, caffeine) and push it over.
-function fitsLimits(f,t){ return NUTS.filter(n=>n[4]==="max").every(n=>!(f.n[n[0]]>0) || (t[n[0]]||0)+f.n[n[0]] <= target(n,t)); }
+// Small amounts (under 5% of a limit, like the 2 mg of sodium in mango) never block a suggestion.
+function fitsLimits(f,t){ return NUTS.filter(n=>n[4]==="max").every(n=>{ const add=f.n[n[0]]||0, lim=target(n,t); return add < lim*0.05 || (t[n[0]]||0)+add <= lim; }); }
 function candidates(t){ return FOODS.filter(f=>fitsLimits(f,t) && !(ONCE_A_DAY.includes(f.id) && eatenToday(f.id))); }
 function sugFor(x,t){
   const gap=target(x.n,t)-x.v; const key=x.n[0];
