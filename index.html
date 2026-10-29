@@ -555,12 +555,13 @@ function nutLine(f,q){
 function fullList(f,q){
   return NUTS.filter(n=>(f.n[n[0]]||0)>0).map(n=>`${n[1]}: ${fmt(f.n[n[0]]*q,n[2])}`).join("\n");
 }
-// Open/closed sections (food groups, meals, tracker groups), remembered on this device.
+// Open/closed sections (food groups, meals, tracker groups). Everything starts closed each time the app opens.
 const FOLD_KEY="fullmeasure-folds";
-let FOLD=(()=>{ try{ return JSON.parse(localStorage.getItem(FOLD_KEY)||"{}")||{}; }catch(e){ return {}; } })();
-const FOLD_DEFAULT={"cat":true,"meal":false,"trk:met":true};   // food groups and "Met" start closed
+try{ localStorage.removeItem(FOLD_KEY); }catch(e){}
+let FOLD={};
+const FOLD_DEFAULT={"cat":true,"meal":true,"trk":true};
 function isFolded(kind,id){ const k=kind+":"+id; return k in FOLD ? FOLD[k] : (k in FOLD_DEFAULT ? FOLD_DEFAULT[k] : !!FOLD_DEFAULT[kind]); }
-function toggleFold(kind,id){ FOLD[kind+":"+id]=!isFolded(kind,id); try{ localStorage.setItem(FOLD_KEY,JSON.stringify(FOLD)); }catch(e){} render(); }
+function toggleFold(kind,id){ FOLD[kind+":"+id]=!isFolded(kind,id); render(); }
 function foldHead(kind,id,cls,inner){ const f=isFolded(kind,id); return `<button class="${cls} fold" data-fold="${kind}" data-fid="${esc(id)}" aria-expanded="${!f}">${inner}<span class="chev" aria-hidden="true"></span></button>`; }
 function renderFoods(){
   const {map,top,any}=helpMap();
