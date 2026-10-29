@@ -280,6 +280,7 @@ button.tgroup:hover{background:var(--bg)}
 .overflag{color:var(--bad);text-transform:uppercase}
 .mprot{color:inherit}
 .mprot.low{color:#ffb3b3;font-weight:700}
+.mprot.ok{color:#a8e6b0;font-weight:700}
 /* week + about */
 .narrow{max-width:640px}
 .hint{background:var(--char);color:var(--on-dark);border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:12px;line-height:1.45}
@@ -508,6 +509,13 @@ function totals(d){
   return t;
 }
 function mealProtein(meal){ let g=0; const m=dayLog(day)[meal]||{}; for (const id in m){ const f=BYID[id]; if(f) g+=(f.n.protein||0)*m[id]; } return g; }
+// Per-meal protein goal = daily goal ÷ 3 (snacks have no goal). Shows how much is left to reach it.
+function protBadge(k){
+  const g=mealProtein(k);
+  if(k==="snacks") return `<span class="mprot">${fmt(g)} g protein</span>`;
+  const goal=Math.round(protTarget()/3), left=goal-g;
+  return left>0.05 ? `<span class="mprot low">${fmt(g)} / ${goal} g protein · ${fmt(left)} g to go</span>` : `<span class="mprot ok">${fmt(g)} / ${goal} g protein ✓</span>`;
+}
 function mealKcal(meal){ let k=0; const m=dayLog(day)[meal]||{}; for (const id in m){ const f=BYID[id]; if(f) k+=(f.n.kcal||0)*m[id]; } return k; }
 // Added sugar and saturated fat limits are each 10% of calories (Dietary Guidelines), figured on at least 1,600 calories.
 // Protein goal for building muscle while strength training: 1.4 g per kg of body weight (middle of the 1.2–1.6 g/kg
@@ -593,7 +601,7 @@ function renderMeals(){
       return `<div class="mrow" title="${fullList(f,m[id])}"><div class="nm"><b>${f.name}</b><small>${f.unit}${m[id]!==1?` × ${qfmt(m[id])}`:""}</small>${nutLine(f,m[id])}</div><div class="step"><button data-m="${k}" data-f="${id}" data-d="${-st}" aria-label="Less ${f.name}">−</button><span>${qfmt(m[id])}</span><button data-m="${k}" data-f="${id}" data-d="${st}" aria-label="More ${f.name}">+</button><button class="rm" data-m="${k}" data-rm="${id}" aria-label="Remove ${f.name}">×</button></div></div>`; }).join("")
       : `<div class="empty">Drag foods here.</div>`;
     const closed=isFolded("meal",k);
-    return `<div class="meal${closed?" closed":""}" data-meal="${k}">${foldHead("meal",k,"mhead",`<span><b>${label}</b><br><small>${fmt(mealKcal(k))} cal · <span class="mprot${ids.length&&k!=="snacks"&&mealProtein(k)<25?" low":""}">${fmt(mealProtein(k))} g protein</span>${ids.length?` · ${ids.length} item${ids.length>1?"s":""}`:""}</small></span>`)}<div class="mbody"${closed?" hidden":""}>${rows}</div></div>`;
+    return `<div class="meal${closed?" closed":""}" data-meal="${k}">${foldHead("meal",k,"mhead",`<span><b>${label}</b><br><small>${fmt(mealKcal(k))} cal · ${protBadge(k)}${ids.length?` · ${ids.length} item${ids.length>1?"s":""}`:""}</small></span>`)}<div class="mbody"${closed?" hidden":""}>${rows}</div></div>`;
   }).join("");
 }
 function sortedNeeds(t){
