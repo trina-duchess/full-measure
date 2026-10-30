@@ -281,6 +281,9 @@ button.tgroup:hover{background:var(--bg)}
 .mprot{color:inherit}
 .mprot.low{color:#ffb3b3;font-weight:700}
 .mprot.ok{color:#a8e6b0;font-weight:700}
+.ritem{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.rsrc{flex:none;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 7px}
+.rsrc.full{color:var(--good);border-color:var(--good)}
 /* week + about */
 .narrow{max-width:640px}
 .hint{background:var(--char);color:var(--on-dark);border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:12px;line-height:1.45}
@@ -880,11 +883,13 @@ async function usdaSearch(){
   resultsEl().innerHTML=`<p class="pmsg">Searching USDA…</p>`;
   try{
     const d=await fdc(`foods/search?query=${encodeURIComponent(q)}&dataType=${encodeURIComponent("Foundation,SR Legacy")}&pageSize=8`);
-    const foods=(d.foods||[]);
+    // SR Legacy records list nearly every nutrient; Foundation records are newer lab data but often only cover the basics.
+    const RANK={"SR Legacy":0,"Foundation":1,"Survey (FNDDS)":2,"Branded":3};
+    const foods=(d.foods||[]).map((f,i)=>({...f,_i:i})).sort((a,b)=>((RANK[a.dataType]??4)-(RANK[b.dataType]??4)) || a._i-b._i);
     if(!foods.length){ usdaErr("No USDA matches. Try fewer or simpler words."); return; }
-    resultsEl().innerHTML=`<p class="pmsg">Pick the closest match:</p>`+foods.map(f=>`<button type="button" class="ritem" data-fdc="${f.fdcId}">${f.description}</button>`).join("");
+    resultsEl().innerHTML=`<p class="pmsg">Pick the closest match:</p>`+foods.map(f=>`<button type="button" class="ritem" data-fdc="${f.fdcId}"><span class="rdesc">${f.description}</span><span class="rsrc${f.dataType==="SR Legacy"?" full":""}">${f.dataType==="SR Legacy"?"SR Legacy · most complete":f.dataType==="Foundation"?"Foundation · basics only":esc(f.dataType||"")}</span></button>`).join("");
     lastSearch=Object.fromEntries(foods.map(f=>[String(f.fdcId),f]));
-    resultsEl().querySelectorAll("[data-fdc]").forEach(b=>b.onclick=()=>usdaPick(b.dataset.fdc,b.textContent));
+    resultsEl().querySelectorAll("[data-fdc]").forEach(b=>b.onclick=()=>usdaPick(b.dataset.fdc,b.querySelector(".rdesc").textContent));
   }catch(e){ usdaErr(lookupError(e)); }
 }
 function nutrientsPer100(food){
@@ -929,7 +934,7 @@ async function usdaPick(id,desc){
       if(!nm.value.trim()) nm.value=desc.slice(0,60);
       un.value = (sel.value ? sel.options[sel.selectedIndex].text : `${Math.round(g)} g`).slice(0,40);
       const n=fillForm(data); un.classList.add("filled");
-      const missing=["SFA","ALA","Fol","Se","VitE","Chol"].filter(k=>usdaPer100[k]==null).map(k=>(FIELDS.find(x=>x[0]===k)||[k,k])[1]);
+      const missing=["SFA","ALA","B1","B2","B3","B6","B12","Fol","Se","VitA","VitC","VitE","VitK","Chol"].filter(k=>usdaPer100[k]==null).map(k=>(FIELDS.find(x=>x[0]===k)||[k,k])[1]);
       resultsEl().innerHTML=`<p class="pmsg">Filled ${n} values from USDA for ${Math.round(g)} g. Check them, then save.</p>`+(missing.length?`<p class="pmsg">USDA's record didn't include: ${missing.join(", ")}.</p>`:"");
     };
   }catch(e){ usdaErr(lookupError(e)); }
