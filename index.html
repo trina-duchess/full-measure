@@ -650,14 +650,27 @@ function bestNext(open,t){
 // Hover (or tap) a "still needed" nutrient to see which of your foods close its gap.
 let tipEl=null;
 function hideTip(){ if(tipEl){ tipEl.remove(); tipEl=null; } }
+// For a limit or a met target, list the foods logged today that make up the total, biggest first.
+function showLimitTip(row,n){
+  const key=n[0], t=totals(day), lim=target(n,t), tot=t[key]||0, by={}, L=dayLog(day), word=n[4]==="max"?"limit":"target";
+  for(const meal in L){ for(const id in L[meal]){ const f=BYID[id]; if(!f) continue; const v=(f.n[key]||0)*L[meal][id]; if(v>0) by[id]=(by[id]||0)+v; } }
+  const all=Object.entries(by).sort((a,b)=>b[1]-a[1]), list=all.slice(0,8), rest=all.slice(8).reduce((s,x)=>s+x[1],0);
+  tipEl=document.createElement("div"); tipEl.className="tip"; tipEl.setAttribute("role","tooltip");
+  tipEl.innerHTML=`<h6>Where today's ${esc(n[1])} came from<small>${fmt(tot,n[2])} of ${fmt(lim,n[2])} · ${Math.round(tot/lim*100)}% of ${word}</small></h6>`+(list.length?`<ul>`+list.map(([id,v])=>`<li>${esc(BYID[id].name)}<span>${fmt(v,n[2])} · ${Math.round(v/lim*100)}%</span></li>`).join("")+(rest>0?`<li>Everything else<span>${fmt(rest,n[2])} · ${Math.round(rest/lim*100)}%</span></li>`:"")+`</ul><p>Percent of your daily ${word}.</p>`:`<p>Nothing logged today adds ${esc(n[1])}.</p>`);
+  placeTip(row);
+}
 function showTip(row){
   hideTip(); const key=row.dataset.need, n=NUTS.find(x=>x[0]===key); if(!n) return;
-  const t=totals(day), gap=target(n,t)-(t[key]||0); if(gap<=0) return;
+  const t=totals(day), gap=target(n,t)-(t[key]||0);
+  if(n[4]==="max" || gap<=0){ showLimitTip(row,n); return; }
   const list=candidates(t).filter(f=>(f.n[key]||0)>0).sort((a,b)=>(b.n[key]||0)-(a.n[key]||0)).slice(0,6);
   tipEl=document.createElement("div"); tipEl.className="tip"; tipEl.setAttribute("role","tooltip");
   tipEl.innerHTML=`<h6>Foods that close your ${esc(n[1])} gap<small>${fmt(gap,n[2])} to go today</small></h6>`+(list.length?`<ul>`+list.map(f=>{ const g=f.n[key], k=Math.ceil(gap/g-1e-9);
       return `<li>${esc(f.name)}<span>+${fmt(g,n[2])} · ${g>=gap?'<b class="ok">✓ covers it</b>':k<=6?`×${k} to cover`:"helps"}</span></li>`; }).join("")+`</ul><p>Per serving. Drag one into a meal to add it.</p>`
       :`<p>None of your foods add ${esc(n[1])} without going over a limit.</p>`);
+  placeTip(row);
+}
+function placeTip(row){
   document.body.appendChild(tipEl);
   const r=row.getBoundingClientRect(), w=tipEl.offsetWidth, h=tipEl.offsetHeight;
   let left=r.left-w-10; if(left<8) left=Math.min(window.innerWidth-w-8, Math.max(8,r.left));
@@ -672,8 +685,8 @@ function renderTracker(){
     `<div class="ptitle">Today's nutrients <small>vs. your targets</small></div>
      <div class="tsum"><div><b>${fmt(t.kcal||0)} <span style="font-size:13px;color:var(--muted);font-weight:400">of ${fmt(calTarget(day))}</span></b><small>calories · ${isLiftDay(day)?"strength day":"rest day"}${(t.kcal||0)<calTarget(day)?` · ${fmt(calTarget(day)-(t.kcal||0))} left`:` · ${fmt((t.kcal||0)-calTarget(day))} over`}</small></div><div><b>${open.length}</b><small>still needed</small></div></div>
      ${open.length?foldHead("trk","need","tgroup",`<span>Still needed · biggest gap first <em>${open.length}</em></span>`)+`<div${isFolded("trk","need")?" hidden":""}>`+open.map(x=>nRow(x.n,x.v,t).replace('<div class="nrow ','<div tabindex="0" data-need="'+x.n[0]+'" class="nrow needs ')).join("")+`</div>`:""}
-     ${met.length?foldHead("trk","met","tgroup",`<span>Met <em>${met.length}</em></span>`)+`<div${isFolded("trk","met")?" hidden":""}>`+met.map(x=>nRow(x.n,x.v,t)).join("")+`</div>`:""}
-     ${foldHead("trk","lim","tgroup",`<span>Limits · stay under${limits.some(n=>status(n,t[n[0]]||0,t).cls==="bad")?' <b class="overflag">over</b>':""}</span>`)}<div${isFolded("trk","lim")?" hidden":""}>${limits.map(n=>nRow(n,t[n[0]]||0,t)).join("")}</div>
+     ${met.length?foldHead("trk","met","tgroup",`<span>Met <em>${met.length}</em></span>`)+`<div${isFolded("trk","met")?" hidden":""}>`+met.map(x=>nRow(x.n,x.v,t).replace('<div class="nrow ','<div tabindex="0" data-need="'+x.n[0]+'" class="nrow ')).join("")+`</div>`:""}
+     ${foldHead("trk","lim","tgroup",`<span>Limits · stay under${limits.some(n=>status(n,t[n[0]]||0,t).cls==="bad")?' <b class="overflag">over</b>':""}</span>`)}<div${isFolded("trk","lim")?" hidden":""}>${limits.map(n=>nRow(n,t[n[0]]||0,t).replace('<div class="nrow ','<div tabindex="0" data-need="'+n[0]+'" class="nrow ')).join("")}</div>
      <div class="tnote">Omega-3 (EPA+DHA): ${fmt(t.EPADHA||0,"g")} today. There's no daily target; the Dietary Guidelines advise 8 oz of seafood a week.</div>`;
   document.getElementById("needbar").innerHTML = open.length
     ? `<b>Still need:</b>`+open.slice(0,5).map(x=>`<span class="chip ${x.s.cls}">${x.n[1]} ${Math.floor(x.s.pct*100)}%</span>`).join("")+(open.length>5?`<span class="chip lo">+${open.length-5} more</span>`:"")
