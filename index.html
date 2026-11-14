@@ -179,6 +179,9 @@ main{max-width:1320px;margin:0 auto;padding-block:14px 48px}
 .msave .lnk{background:none;border:1px solid var(--brand);color:var(--brand);border-radius:999px;padding:4px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .msave .lnk.go{background:var(--brand);color:#fff}
 .msave small{color:var(--muted);font-size:12px;flex-basis:100%}
+.melist{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.melist .mrow:first-child{border-top:0}
+#me-add{flex:1;min-width:0;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink)}
 .addfood{width:100%}
 .btn.solid{background:var(--brand);color:var(--on-dark)}
 .fitem .edit{flex:none;font-size:12px;font-weight:700;color:var(--brand);border:1px solid var(--brand);border-radius:999px;padding:2px 8px;cursor:pointer}
@@ -453,6 +456,7 @@ function refreshFoods(){
   // Foods filed under the old catch-all "Sides & Snacks" move to the new groups by name, unless you picked their group yourself.
   FOODS=FOODS.map(f=>{ if(f.cat!=="Sides & Snacks"||f.catSet) return f; const c=autoCat(f.name); return c?{...f,cat:c}:f; });
   BYID=Object.fromEntries(FOODS.map(f=>[f.id,f]));
+  FOODS=FOODS.filter(f=>!f.hidden); // deleted foods stay in BYID so days you already logged keep their numbers
 }
 function autoCat(name){ const x=(name||"").toLowerCase();
   if(/popcorn/.test(x)) return null;
@@ -585,11 +589,11 @@ const SAVED_KEY="fullmeasure-saved-meals-v1";
 function loadSaved(){ try{ const v=JSON.parse(localStorage.getItem(SAVED_KEY)||"{}"); return v&&typeof v==="object"&&!Array.isArray(v)?v:{}; }catch(e){ return {}; } }
 function saveSaved(v){ try{ localStorage.setItem(SAVED_KEY,JSON.stringify(v)); }catch(e){} }
 function savedList(){ return Object.values(loadSaved()).sort((a,b)=>a.name.localeCompare(b.name)); }
-function savedTotals(sm){ let k=0,p=0,n=0; for(const id in sm.items){ const f=BYID[id]; if(!f) continue; n++; k+=(f.n.kcal||0)*sm.items[id]; p+=(f.n.protein||0)*sm.items[id]; } return {k,p,n}; }
+function savedTotals(sm){ let k=0,p=0,n=0; for(const id in sm.items){ const f=BYID[id]; if(!f||f.hidden) continue; n++; k+=(f.n.kcal||0)*sm.items[id]; p+=(f.n.protein||0)*sm.items[id]; } return {k,p,n}; }
 function addSaved(meal,sid){
   if(!live()) return; const sm=loadSaved()[sid]; if(!sm) return;
   log=load(); const L=log[day]=log[day]||{}; const m=L[meal]=L[meal]||{};
-  for(const id in sm.items){ if(BYID[id]) m[id]=(m[id]||0)+sm.items[id]; }
+  for(const id in sm.items){ if(BYID[id] && !BYID[id].hidden) m[id]=(m[id]||0)+sm.items[id]; }
   if(!Object.keys(m).length) delete L[meal];
   touchDay(day); save(); FOLD["meal:"+meal]=false; render(); queueSync();
 }
@@ -650,8 +654,8 @@ function renderSavedList(){
   const list=savedList(), closed=isFolded("saved","all");
   return foldHead("saved","all","cat",`<span>My meals <em>${list.length}</em></span>`)
     + `<div class="catbody"${closed?" hidden":""}>` + (list.length ? list.map(sm=>{ const t=savedTotals(sm);
-      const names=Object.keys(sm.items).filter(id=>BYID[id]).map(id=>BYID[id].name+(sm.items[id]!==1?` ×${qfmt(sm.items[id])}`:"")).join(", ");
-      return `<button class="fitem smeal" data-addmeal="${sm.id}" aria-label="Add ${esc(sm.name)}"><span class="nm"><b>${esc(sm.name)}</b><small>${t.n} food${t.n===1?"":"s"} · ${fmt(t.k)} cal · ${fmt(t.p)} g protein</small><span class="items">${esc(names)}</span></span><span class="del${delArmed===sm.id?" armed":""}" role="button" tabindex="0" data-delmeal="${sm.id}" aria-label="Delete ${esc(sm.name)}">${delArmed===sm.id?"Delete?":"×"}</span><span class="grip" aria-hidden="true">⋮⋮</span></button>`; }).join("")
+      const names=Object.keys(sm.items).filter(id=>BYID[id]&&!BYID[id].hidden).map(id=>BYID[id].name+(sm.items[id]!==1?` ×${qfmt(sm.items[id])}`:"")).join(", ");
+      return `<button class="fitem smeal" data-addmeal="${sm.id}" aria-label="Add ${esc(sm.name)}"><span class="nm"><b>${esc(sm.name)}</b><small>${t.n} food${t.n===1?"":"s"} · ${fmt(t.k)} cal · ${fmt(t.p)} g protein</small><span class="items">${esc(names)}</span></span><span class="edit" role="button" tabindex="0" data-editmeal="${sm.id}" aria-label="Edit ${esc(sm.name)}">Edit</span><span class="grip" aria-hidden="true">⋮⋮</span></button>`; }).join("")
       : `<div class="empty">No saved meals yet. Fill a meal below, then tap <b>Save as a meal</b> at the bottom of it.</div>`) + `</div>`;
 }
 let saving=null; // {meal, name, msg}
@@ -779,7 +783,7 @@ function moveGhost(x,y){ if(!ghost) return; ghost.style.left=x+"px"; ghost.style
 function endDrag(){ clearTimeout(drag&&drag.timer); if(ghost) ghost.remove(); ghost=null; clearOver(); drag=null; }
 const foodsEl=document.getElementById("foods");
 foodsEl.addEventListener("pointerdown",e=>{
-  if(e.target.closest("[data-edit],[data-delmeal],#addFood")) return;
+  if(e.target.closest("[data-edit],[data-editmeal],#addFood")) return;
   const b=e.target.closest("[data-add],[data-addmeal]"); if(!b || e.button>0) return;
   closePicker();
   if(e.pointerType==="mouse") e.preventDefault();
@@ -875,7 +879,7 @@ function openForm(id){
     <div class="grid">${FIELDS.filter(x=>x[3]).map(x=>field(x,f.n[x[0]])).join("")}</div>
     <details${FIELDS.some(x=>!x[3]&&f.n[x[0]])?" open":""}><summary>More nutrients (optional)</summary><div class="grid">${FIELDS.filter(x=>!x[3]).map(x=>field(x,f.n[x[0]])).join("")}</div></details>
     <p class="err" id="fm-err" hidden></p>
-    <div class="actions">${editing&&(!isBase||editing.edited)?`<button type="button" class="btn plain del" id="fm-del">${isBase?"Reset to original":"Delete food"}</button>`:""}<span class="spacer"></span><button type="button" class="btn plain" id="fm-cancel">Cancel</button><button type="submit" class="btn solid">${editing?"Save changes":"Add food"}</button></div>`;
+    <div class="actions">${editing?`<button type="button" class="btn plain del" id="fm-del">Delete food</button>`:""}${isBase&&editing.edited?`<button type="button" class="btn plain" id="fm-reset">Reset to original</button>`:""}<span class="spacer"></span><button type="button" class="btn plain" id="fm-cancel">Cancel</button><button type="submit" class="btn solid">${editing?"Save changes":"Add food"}</button></div>`;
   modal.hidden=false; document.getElementById("fm-name").focus();
   document.getElementById("fm-search").onclick=()=>usdaSearch();
   document.getElementById("fm-q").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); usdaSearch(); } });
@@ -889,7 +893,44 @@ function openForm(id){
     document.getElementById("fm-from").value=to; document.getElementById("fm-to").value="";
     rm.classList.remove("bad"); rm.textContent="Updated. Check the numbers, then tap Save changes. Days you've already logged will use the new serving too."; };
   const del=document.getElementById("fm-del"); let armedDel=0;
-  if(del) del.onclick=()=>{ if(Date.now()-armedDel<4000){ CUSTOM=CUSTOM.filter(x=>x.id!==editing.id); touchFood(editing.id); saveCustom(); queueSync(); refreshFoods(); closeForm(); render(); return; } armedDel=Date.now(); del.textContent=isBase?"Tap again to reset":"Tap again to delete"; };
+  if(del) del.onclick=()=>{ if(Date.now()-armedDel<4000){ const {base,edited,custom,...keep}=editing; const gone={...keep,hidden:true};
+      CUSTOM=CUSTOM.some(x=>x.id===gone.id)?CUSTOM.map(x=>x.id===gone.id?gone:x):[...CUSTOM,gone]; touchFood(gone.id); saveCustom(); queueSync(); refreshFoods(); closeForm(); render(); return; }
+    armedDel=Date.now(); del.textContent="Tap again to delete"; };
+  const rs=document.getElementById("fm-reset"); let armedRs=0;
+  if(rs) rs.onclick=()=>{ if(Date.now()-armedRs<4000){ CUSTOM=CUSTOM.filter(x=>x.id!==editing.id); touchFood(editing.id); saveCustom(); queueSync(); refreshFoods(); closeForm(); render(); return; } armedRs=Date.now(); rs.textContent="Tap again to reset"; };
+}
+// ----- Edit a saved meal: name, foods and amounts. Saving changes the meal for every day you add it from now on. -----
+let mealDraft=null;
+function openMealEditor(id){
+  if(!live()) return; const sm=loadSaved()[id]; if(!sm) return;
+  editing=null; mealDraft={id, name:sm.name, items:Object.fromEntries(Object.entries(sm.items).filter(([f])=>BYID[f]&&!BYID[f].hidden))};
+  modal.hidden=false; drawMealEditor(); document.getElementById("me-name").focus();
+}
+function drawMealEditor(){
+  const d=mealDraft, ids=Object.keys(d.items); let k=0,p=0; ids.forEach(id=>{ const f=BYID[id]; k+=(f.n.kcal||0)*d.items[id]; p+=(f.n.protein||0)*d.items[id]; });
+  const opts=CATS.map(c=>{ const l=FOODS.filter(f=>f.cat===c && !d.items[f.id]).sort((a,b)=>a.name.localeCompare(b.name)); return l.length?`<optgroup label="${esc(c)}">${l.map(f=>`<option value="${f.id}">${esc(f.name)} (${esc(f.unit)})</option>`).join("")}</optgroup>`:""; }).join("");
+  form.innerHTML=`<h3>Edit meal</h3>
+    <p class="note">Changes here update the saved meal for every day you add it from now on. Days you've already logged stay as they are.</p>
+    <label class="fld wide"><span>Meal name</span><input id="me-name" maxlength="40" value="${esc(d.name)}"></label>
+    <h4>Foods · ${fmt(k)} cal · ${fmt(p)} g protein</h4>
+    <div class="melist">${ids.length?ids.map(id=>{ const f=BYID[id], st=f.step||0.5; return `<div class="mrow"><div class="nm"><b>${esc(f.name)}</b><small>${esc(f.unit)}${d.items[id]!==1?` × ${qfmt(d.items[id])}`:""}</small></div><div class="step"><button type="button" data-me="${id}" data-d="${-st}" aria-label="Less ${esc(f.name)}">−</button><span>${qfmt(d.items[id])}</span><button type="button" data-me="${id}" data-d="${st}" aria-label="More ${esc(f.name)}">+</button><button type="button" class="rm" data-merm="${id}" aria-label="Remove ${esc(f.name)}">×</button></div></div>`; }).join(""):`<div class="empty">No foods yet. Add one below.</div>`}</div>
+    <div class="keyrow"><select id="me-add"><option value="">Add a food…</option>${opts}</select><button type="button" class="btn" id="me-addgo">Add</button></div>
+    <p class="err" id="me-err" hidden></p>
+    <div class="actions"><button type="button" class="btn plain del" id="me-del">Delete meal</button><span class="spacer"></span><button type="button" class="btn plain" id="me-cancel">Cancel</button><button type="button" class="btn solid" id="me-save">Save meal</button></div>`;
+  const nm=document.getElementById("me-name");
+  nm.addEventListener("input",()=>{ d.name=nm.value; });
+  nm.addEventListener("keydown",e=>{ if(e.key==="Enter") e.preventDefault(); });
+  form.querySelectorAll("[data-me]").forEach(b=>b.onclick=()=>{ const id=b.dataset.me; const q=Math.max(0,Math.round(((d.items[id]||0)+(+b.dataset.d))*2)/2); if(q) d.items[id]=q; else delete d.items[id]; drawMealEditor(); });
+  form.querySelectorAll("[data-merm]").forEach(b=>b.onclick=()=>{ delete d.items[b.dataset.merm]; drawMealEditor(); });
+  document.getElementById("me-addgo").onclick=()=>{ const v=document.getElementById("me-add").value; if(v){ d.items[v]=1; drawMealEditor(); } };
+  document.getElementById("me-cancel").onclick=closeForm;
+  document.getElementById("me-save").onclick=()=>{ const name=d.name.trim(), err=document.getElementById("me-err");
+    if(!name){ err.textContent="Give the meal a name."; err.hidden=false; return; }
+    if(!Object.keys(d.items).length){ err.textContent="Add at least one food, or tap Delete meal."; err.hidden=false; return; }
+    const all=loadSaved(); if(Object.values(all).some(x=>x.id!==d.id && x.name.toLowerCase()===name.toLowerCase())){ err.textContent="Another saved meal already has that name."; err.hidden=false; return; }
+    all[d.id]={id:d.id,name,items:{...d.items}}; saveSaved(all); touchSaved(d.id); queueSync(); closeForm(); render(); };
+  const del=document.getElementById("me-del"); let armed=0;
+  del.onclick=()=>{ if(Date.now()-armed<4000){ deleteSaved(d.id); closeForm(); render(); return; } armed=Date.now(); del.textContent="Tap again to delete"; };
 }
 // ----- Read a Nutrition Facts photo -----
 // In the Claude preview, Claude reads the photo. On your own site (GitHub), text recognition runs on the phone.
@@ -1142,9 +1183,9 @@ function parseLead(u){ const m=String(u).match(/^\s*(\d+(?:\.\d+)?)?\s*([½¼¾�
 function fmtAmt(n){ const w=Math.floor(n+1e-9), r=+(n-w).toFixed(3); const sym=Object.entries(FRAC).find(([,v])=>Math.abs(v-r)<0.01);
   if(r<0.01) return String(w); if(sym) return (w?String(w):"")+sym[0]; return String(+n.toFixed(2)); }
 function resizeUnit(u,from,to){ const L=parseLead(u); if(L.len) return (fmtAmt(L.n*to/from)+" "+u.slice(L.len).trim()).trim(); return `${fmtAmt(to/from)} × ${u}`; }
-function closeForm(){ modal.hidden=true; editing=null; }
+function closeForm(){ modal.hidden=true; editing=null; mealDraft=null; }
 form.addEventListener("submit",e=>{
-  e.preventDefault(); if(!live()) return;
+  e.preventDefault(); if(!live() || mealDraft) return;
   const name=document.getElementById("fm-name").value.trim(), unit=document.getElementById("fm-unit").value.trim(), err=document.getElementById("fm-err");
   if(!name||!unit){ err.textContent="Add a name and a serving size."; err.hidden=false; return; }
   const n={}; FIELDS.forEach(x=>{ const v=parseFloat(document.getElementById("fm-"+x[0]).value); if(v>0) n[x[0]]=v; });
@@ -1156,11 +1197,10 @@ form.addEventListener("submit",e=>{
 });
 document.getElementById("foods").addEventListener("click",e=>{
   if(e.target.closest("#addFood")){ openForm(null); return; }
-  const dm=e.target.closest("[data-delmeal]"); if(dm){ e.preventDefault(); const id=dm.dataset.delmeal;
-    if(delArmed===id){ delArmed=""; deleteSaved(id); render(); } else { delArmed=id; renderFoods(); setTimeout(()=>{ if(delArmed===id){ delArmed=""; renderFoods(); } },4000); } return; }
+  const em=e.target.closest("[data-editmeal]"); if(em){ e.preventDefault(); openMealEditor(em.dataset.editmeal); return; }
   const ed=e.target.closest("[data-edit]"); if(ed){ e.preventDefault(); openForm(ed.dataset.edit); }
 });
-document.getElementById("foods").addEventListener("keydown",e=>{ const ed=e.target.closest("[data-edit]"); if(ed && (e.key==="Enter"||e.key===" ")){ e.preventDefault(); openForm(ed.dataset.edit); } });
+document.getElementById("foods").addEventListener("keydown",e=>{ const em=e.target.closest("[data-editmeal]"); if(em && (e.key==="Enter"||e.key===" ")){ e.preventDefault(); openMealEditor(em.dataset.editmeal); return; } const ed=e.target.closest("[data-edit]"); if(ed && (e.key==="Enter"||e.key===" ")){ e.preventDefault(); openForm(ed.dataset.edit); } });
 // ----- Learn: flashcards on what each nutrient does, the body systems it supports, and your top sources -----
 const FACTS=[
  ["Calories","Provide the energy required for metabolism, movement, and organ function.","Whole body energy metabolism, brain, muscles, organs",["kcal"]],
@@ -1321,7 +1361,7 @@ function renderGuide(){
     || `<tr><td colspan="5">No nutrients match "${esc(q)}".</td></tr>`;
 }
 document.getElementById("gfilter").addEventListener("input",renderGuide);
-document.addEventListener("click",e=>{ const b=e.target.closest("[data-fold]"); if(b && !e.target.closest("[data-add],[data-edit],[data-addmeal]")) toggleFold(b.dataset.fold,b.dataset.fid); });
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-fold]"); if(b && !e.target.closest("[data-add],[data-edit],[data-addmeal],[data-editmeal]")) toggleFold(b.dataset.fold,b.dataset.fid); });
 (function(){ const inp=document.getElementById("wtIn"), m=document.getElementById("wtMsg");
   const show=()=>{ const w=weightLb(); m.textContent = w ? `Saved: ${w} lb. Your protein goal is ${protTarget()} g a day, about ${Math.round(protTarget()/3)} g per meal. Calorie goal: 1,800 on strength days (Mon, Wed, Fri), 1,600 on rest days.` : `No weight saved. Your protein goal is 90 g a day, about 30 g per meal.`; };
   show();
