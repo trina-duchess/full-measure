@@ -171,6 +171,14 @@ main{max-width:1320px;margin:0 auto;padding-block:14px 48px}
 .hrow2 small{color:var(--muted);font-size:12px}
 #hist{display:grid;gap:6px;margin-top:8px}
 .addrow{padding:10px 14px;border-bottom:1px solid var(--line)}
+.smeal .items{display:block;font-size:12px;color:var(--muted);margin-top:2px;line-height:1.35}
+.smeal .del{flex:none;font-size:12px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 8px;cursor:pointer}
+.smeal .del.armed{color:#fff;background:var(--brand);border-color:var(--brand)}
+.msave{padding:8px 14px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.msave input{flex:1;min-width:140px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--ink)}
+.msave .lnk{background:none;border:1px solid var(--brand);color:var(--brand);border-radius:999px;padding:4px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.msave .lnk.go{background:var(--brand);color:#fff}
+.msave small{color:var(--muted);font-size:12px;flex-basis:100%}
 .addfood{width:100%}
 .btn.solid{background:var(--brand);color:var(--on-dark)}
 .fitem .edit{flex:none;font-size:12px;font-weight:700;color:var(--brand);border:1px solid var(--brand);border-radius:999px;padding:2px 8px;cursor:pointer}
@@ -571,6 +579,27 @@ function setQty(meal,id,q){
   touchDay(day); save(); render(); queueSync();
 }
 const qty = (meal,id) => (dayLog(day)[meal]||{})[id]||0;
+// Saved meals: a name and a set of foods with amounts. Adding one copies its foods into a day's meal;
+// changes you make there are for that day only, and the saved meal stays as it is.
+const SAVED_KEY="fullmeasure-saved-meals-v1";
+function loadSaved(){ try{ const v=JSON.parse(localStorage.getItem(SAVED_KEY)||"{}"); return v&&typeof v==="object"&&!Array.isArray(v)?v:{}; }catch(e){ return {}; } }
+function saveSaved(v){ try{ localStorage.setItem(SAVED_KEY,JSON.stringify(v)); }catch(e){} }
+function savedList(){ return Object.values(loadSaved()).sort((a,b)=>a.name.localeCompare(b.name)); }
+function savedTotals(sm){ let k=0,p=0,n=0; for(const id in sm.items){ const f=BYID[id]; if(!f) continue; n++; k+=(f.n.kcal||0)*sm.items[id]; p+=(f.n.protein||0)*sm.items[id]; } return {k,p,n}; }
+function addSaved(meal,sid){
+  if(!live()) return; const sm=loadSaved()[sid]; if(!sm) return;
+  log=load(); const L=log[day]=log[day]||{}; const m=L[meal]=L[meal]||{};
+  for(const id in sm.items){ if(BYID[id]) m[id]=(m[id]||0)+sm.items[id]; }
+  if(!Object.keys(m).length) delete L[meal];
+  touchDay(day); save(); FOLD["meal:"+meal]=false; render(); queueSync();
+}
+function saveMealAs(meal,name){
+  const items={...(dayLog(day)[meal]||{})}; if(!Object.keys(items).length) return "";
+  const all=loadSaved(); const old=Object.values(all).find(x=>x.name.toLowerCase()===name.toLowerCase());
+  const id=old?old.id:"m"+Date.now().toString(36); all[id]={id,name,items}; saveSaved(all); touchSaved(id); queueSync();
+  return old?"updated":"saved";
+}
+function deleteSaved(id){ const all=loadSaved(); delete all[id]; saveSaved(all); touchSaved(id); queueSync(); }
 
 function renderNav(){
   const ct=document.getElementById("copyToday"); if(ct) ct.hidden = !(day!==iso(new Date()) && hasAny(day));
@@ -603,18 +632,33 @@ function fullList(f,q){
 const FOLD_KEY="fullmeasure-folds";
 try{ localStorage.removeItem(FOLD_KEY); }catch(e){}
 let FOLD={};
-const FOLD_DEFAULT={"cat":true,"meal":true,"trk":true};
+const FOLD_DEFAULT={"cat":true,"meal":true,"trk":true,"saved":true};
 function isFolded(kind,id){ const k=kind+":"+id; return k in FOLD ? FOLD[k] : (k in FOLD_DEFAULT ? FOLD_DEFAULT[k] : !!FOLD_DEFAULT[kind]); }
 function toggleFold(kind,id){ FOLD[kind+":"+id]=!isFolded(kind,id); render(); }
 function foldHead(kind,id,cls,inner){ const f=isFolded(kind,id); return `<button class="${cls} fold" data-fold="${kind}" data-fid="${esc(id)}" aria-expanded="${!f}">${inner}<span class="chev" aria-hidden="true"></span></button>`; }
 function renderFoods(){
   const {map,top,any}=helpMap();
   document.getElementById("foods").innerHTML =
-    `<div class="ptitle">Foods <small>${any?"Highlighted = fills a gap":"Drag into a meal"}</small></div><div class="addrow"><button class="btn addfood" id="addFood">+ Add a food</button></div>` +
+    `<div class="ptitle">Foods <small>${any?"Highlighted = fills a gap":"Drag into a meal"}</small></div><div class="addrow"><button class="btn addfood" id="addFood">+ Add a food</button></div>` + renderSavedList() +
     CATS.map(c=>{ const list=FOODS.filter(f=>f.cat===c).sort((a,b)=>(map[b.id]?1:0)-(map[a.id]?1:0) || a.name.localeCompare(b.name)), nh=list.filter(f=>map[f.id]).length, closed=isFolded("cat",c);
       return foldHead("cat",c,"cat",`<span>${c} <em>${list.length}</em></span>${nh?`<span class="gapchip">${nh} fill${nh>1?"":"s"} a gap</span>`:""}`)
       + `<div class="catbody"${closed?" hidden":""}>` + list.map(f=>{ const h=map[f.id];
       return `<button class="fitem${h?" helps":""}" data-add="${f.id}" aria-label="Add ${f.name}" title="${fullList(f,1)}"><span class="nm"><b>${f.name}${top.has(f.id)?' <span class="toppick">Top pick</span>':""}</b><small>${f.unit}</small>${nutLine(f,1)}${h?`<span class="need">Adds ${h.join(", ")}</span>`:""}</span><span class="edit" role="button" tabindex="0" data-edit="${f.id}" aria-label="Edit ${f.name}">Edit</span><span class="grip" aria-hidden="true">⋮⋮</span></button>`; }).join("") + `</div>`; }).join("");
+}
+let delArmed="";
+function renderSavedList(){
+  const list=savedList(), closed=isFolded("saved","all");
+  return foldHead("saved","all","cat",`<span>My meals <em>${list.length}</em></span>`)
+    + `<div class="catbody"${closed?" hidden":""}>` + (list.length ? list.map(sm=>{ const t=savedTotals(sm);
+      const names=Object.keys(sm.items).filter(id=>BYID[id]).map(id=>BYID[id].name+(sm.items[id]!==1?` ×${qfmt(sm.items[id])}`:"")).join(", ");
+      return `<button class="fitem smeal" data-addmeal="${sm.id}" aria-label="Add ${esc(sm.name)}"><span class="nm"><b>${esc(sm.name)}</b><small>${t.n} food${t.n===1?"":"s"} · ${fmt(t.k)} cal · ${fmt(t.p)} g protein</small><span class="items">${esc(names)}</span></span><span class="del${delArmed===sm.id?" armed":""}" role="button" tabindex="0" data-delmeal="${sm.id}" aria-label="Delete ${esc(sm.name)}">${delArmed===sm.id?"Delete?":"×"}</span><span class="grip" aria-hidden="true">⋮⋮</span></button>`; }).join("")
+      : `<div class="empty">No saved meals yet. Fill a meal below, then tap <b>Save as a meal</b> at the bottom of it.</div>`) + `</div>`;
+}
+let saving=null; // {meal, name, msg}
+function saveBar(k,has){
+  if(saving && saving.meal===k) return `<div class="msave"><input data-savename="${k}" maxlength="40" placeholder="Name this meal" value="${esc(saving.name)}"><button class="lnk go" data-savego="${k}">Save</button><button class="lnk" data-savecancel="${k}">Cancel</button>${saving.msg?`<small>${esc(saving.msg)}</small>`:""}</div>`;
+  if(saving && saving.done===k) return `<div class="msave"><small>${esc(saving.doneMsg)}</small></div>`;
+  return has?`<div class="msave"><button class="lnk" data-savemeal="${k}">Save as a meal</button></div>`:"";
 }
 function renderMeals(){
   document.getElementById("meals").innerHTML = MEALS.map(([k,label])=>{
@@ -623,7 +667,7 @@ function renderMeals(){
       return `<div class="mrow" title="${fullList(f,m[id])}"><div class="nm"><b>${f.name}</b><small>${f.unit}${m[id]!==1?` × ${qfmt(m[id])}`:""}</small>${nutLine(f,m[id])}</div><div class="step"><button data-m="${k}" data-f="${id}" data-d="${-st}" aria-label="Less ${f.name}">−</button><span>${qfmt(m[id])}</span><button data-m="${k}" data-f="${id}" data-d="${st}" aria-label="More ${f.name}">+</button><button class="rm" data-m="${k}" data-rm="${id}" aria-label="Remove ${f.name}">×</button></div></div>`; }).join("")
       : `<div class="empty">Drag foods here.</div>`;
     const closed=isFolded("meal",k);
-    return `<div class="meal${closed?" closed":""}" data-meal="${k}">${foldHead("meal",k,"mhead",`<span><b>${label}</b><br><small>${fmt(mealKcal(k))} cal · ${protBadge(k)}${ids.length?` · ${ids.length} item${ids.length>1?"s":""}`:""}</small></span>`)}<div class="mbody"${closed?" hidden":""}>${rows}</div></div>`;
+    return `<div class="meal${closed?" closed":""}" data-meal="${k}">${foldHead("meal",k,"mhead",`<span><b>${label}</b><br><small>${fmt(mealKcal(k))} cal · ${protBadge(k)}${ids.length?` · ${ids.length} item${ids.length>1?"s":""}`:""}</small></span>`)}<div class="mbody"${closed?" hidden":""}>${rows}${saveBar(k,ids.length>0)}</div></div>`;
   }).join("");
 }
 function sortedNeeds(t){
@@ -711,26 +755,36 @@ function renderWeek(){
 function render(){ if(!live()) return; renderNav(); renderFoods(); renderMeals(); renderTracker(); renderWeek(); }
 
 document.getElementById("meals").addEventListener("click",e=>{
+  const sv=e.target.closest("[data-savemeal]"); if(sv){ saving={meal:sv.dataset.savemeal,name:"",msg:""}; renderMeals(); const i=document.querySelector(`[data-savename="${sv.dataset.savemeal}"]`); if(i) i.focus(); return; }
+  if(e.target.closest("[data-savecancel]")){ saving=null; renderMeals(); return; }
+  const go=e.target.closest("[data-savego]"); if(go){ doSave(go.dataset.savego); return; }
   const r=e.target.closest("[data-rm]"); if(r){ setQty(r.dataset.m,r.dataset.rm,0); return; }
   const b=e.target.closest("[data-f]"); if(b) setQty(b.dataset.m,b.dataset.f,qty(b.dataset.m,b.dataset.f)+(+b.dataset.d));
 });
 const addOne = (meal,id) => setQty(meal,id,qty(meal,id)+1);
+function doSave(k){
+  const name=(saving&&saving.name||"").trim(); if(!name){ saving.msg="Type a name first."; renderMeals(); const i=document.querySelector(`[data-savename="${k}"]`); if(i) i.focus(); return; }
+  const r=saveMealAs(k,name); saving={done:k,doneMsg:r==="updated"?`Updated "${name}" in My meals.`:`Saved "${name}" to My meals.`};
+  render(); setTimeout(()=>{ if(saving&&saving.done===k){ saving=null; renderMeals(); } },2500);
+}
+document.getElementById("meals").addEventListener("input",e=>{ const i=e.target.closest("[data-savename]"); if(i&&saving) saving.name=i.value; });
+document.getElementById("meals").addEventListener("keydown",e=>{ const i=e.target.closest("[data-savename]"); if(!i) return; if(e.key==="Enter"){ e.preventDefault(); doSave(i.dataset.savename); } if(e.key==="Escape"){ saving=null; renderMeals(); } });
 
 // Drag and drop (mouse: drag right away; touch: press and hold, then drag). A plain tap opens the meal picker.
 let drag=null, ghost=null, picker=null;
 const mealAt = (x,y) => { const el=document.elementFromPoint(x,y); return el && el.closest("[data-meal]"); };
 function clearOver(){ document.querySelectorAll(".meal.over").forEach(m=>m.classList.remove("over")); }
-function startDrag(){ if(!live()){ drag=null; return; } drag.active=true; ghost=document.createElement("div"); ghost.className="ghost"; ghost.textContent=BYID[drag.id].name; document.body.appendChild(ghost); moveGhost(drag.x,drag.y); if(navigator.vibrate) try{navigator.vibrate(10)}catch(e){} }
+function startDrag(){ if(!live()){ drag=null; return; } drag.active=true; ghost=document.createElement("div"); ghost.className="ghost"; ghost.textContent=drag.saved?((loadSaved()[drag.id]||{}).name||"Meal"):BYID[drag.id].name; document.body.appendChild(ghost); moveGhost(drag.x,drag.y); if(navigator.vibrate) try{navigator.vibrate(10)}catch(e){} }
 function moveGhost(x,y){ if(!ghost) return; ghost.style.left=x+"px"; ghost.style.top=y+"px"; clearOver(); const m=mealAt(x,y); if(m) m.classList.add("over"); }
 function endDrag(){ clearTimeout(drag&&drag.timer); if(ghost) ghost.remove(); ghost=null; clearOver(); drag=null; }
 const foodsEl=document.getElementById("foods");
 foodsEl.addEventListener("pointerdown",e=>{
-  if(e.target.closest("[data-edit],#addFood")) return;
-  const b=e.target.closest("[data-add]"); if(!b || e.button>0) return;
+  if(e.target.closest("[data-edit],[data-delmeal],#addFood")) return;
+  const b=e.target.closest("[data-add],[data-addmeal]"); if(!b || e.button>0) return;
   closePicker();
   if(e.pointerType==="mouse") e.preventDefault();
   try{ window.getSelection().removeAllRanges(); }catch(_){}
-  drag={id:b.dataset.add, x:e.clientX, y:e.clientY, sx:e.clientX, sy:e.clientY, touch:e.pointerType!=="mouse", active:false, moved:false, el:b};
+  drag={id:b.dataset.add||b.dataset.addmeal, saved:!!b.dataset.addmeal, x:e.clientX, y:e.clientY, sx:e.clientX, sy:e.clientY, touch:e.pointerType!=="mouse", active:false, moved:false, el:b};
   if(drag.touch) drag.timer=setTimeout(()=>{ if(drag && !drag.moved) startDrag(); },280);
 });
 window.addEventListener("pointermove",e=>{
@@ -742,14 +796,14 @@ window.addEventListener("pointermove",e=>{
 document.addEventListener("touchmove",e=>{ if(drag && drag.active) e.preventDefault(); },{passive:false});
 window.addEventListener("pointerup",e=>{
   if(!drag) return;
-  if(drag.active){ const m=mealAt(e.clientX,e.clientY); const id=drag.id; endDrag(); if(m) addOne(m.dataset.meal,id); return; }
+  if(drag.active){ const m=mealAt(e.clientX,e.clientY); const id=drag.id, sv=drag.saved; endDrag(); if(m){ if(sv) addSaved(m.dataset.meal,id); else addOne(m.dataset.meal,id); } return; }
   endDrag();
 });
 window.addEventListener("pointercancel",()=>{ if(drag) endDrag(); });
 ["tracker","needbar"].forEach(id=>document.getElementById(id).addEventListener("click",e=>{ const b=e.target.closest("[data-sug]"); if(b) openPicker(b.dataset.sug,b); }));
 foodsEl.addEventListener("dragstart",e=>e.preventDefault());
 foodsEl.addEventListener("selectstart",e=>e.preventDefault());
-foodsEl.addEventListener("contextmenu",e=>{ if(e.target.closest("[data-add]")) e.preventDefault(); });
+foodsEl.addEventListener("contextmenu",e=>{ if(e.target.closest("[data-add],[data-addmeal]")) e.preventDefault(); });
 function openPicker(id,el){
   if(!live()) return;
   closePicker(); const f=BYID[id]; const r=el.getBoundingClientRect();
@@ -785,11 +839,11 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   window.scrollTo(0,0);
 });
 const bk=document.getElementById("bk"), msg=document.getElementById("bkMsg");
-document.getElementById("exp").onclick=async()=>{ const s=JSON.stringify({log,foods:CUSTOM}); bk.value=s; bk.hidden=false;
+document.getElementById("exp").onclick=async()=>{ const s=JSON.stringify({log,foods:CUSTOM,meals:loadSaved()}); bk.value=s; bk.hidden=false;
   try{ await navigator.clipboard.writeText(s); msg.textContent="Backup copied. Paste it into Notes to keep it safe."; } catch(e){ bk.select(); msg.textContent="Select the text above and copy it to Notes."; } };
 document.getElementById("imp").onclick=()=>{ bk.value=""; bk.hidden=false; document.getElementById("impRow").hidden=false; msg.textContent="Paste your backup above, then tap Restore."; };
 document.getElementById("impGo").onclick=()=>{ try{ const o=JSON.parse(bk.value); if(typeof o!=="object"||Array.isArray(o)) throw 0;
-    if(o.log && typeof o.log==="object"){ log=o.log; if(Array.isArray(o.foods)){ CUSTOM=o.foods; saveCustom(); refreshFoods(); o.foods.forEach(f=>touchFood(f.id)); } } else log=o;
+    if(o.log && typeof o.log==="object"){ log=o.log; if(Array.isArray(o.foods)){ CUSTOM=o.foods; saveCustom(); refreshFoods(); o.foods.forEach(f=>touchFood(f.id)); } if(o.meals && typeof o.meals==="object"){ saveSaved(o.meals); Object.keys(o.meals).forEach(touchSaved); } } else log=o;
     Object.keys(log).forEach(touchDay); queueSync();
     save(); render(); msg.textContent="Restored."; } catch(e){ msg.textContent="That text isn't a valid backup."; } };
 // ----- Add / edit your own foods (values straight from a Nutrition Facts label, per serving) -----
@@ -984,14 +1038,15 @@ async function usdaPick(id,desc){
 const STAMPS_KEY="fullmeasure-stamps-v1", SYNC_KEY="fullmeasure-sync-v1", GIST_FILE="full-measure-data.json";
 function loadJSON(k,d){ try{ const v=JSON.parse(localStorage.getItem(k)||"null"); return v&&typeof v==="object"?v:d; }catch(e){ return d; } }
 function saveJSON(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
-function stamps(){ const s=loadJSON(STAMPS_KEY,{}); s.days=s.days||{}; s.foods=s.foods||{}; return s; }
+function stamps(){ const s=loadJSON(STAMPS_KEY,{}); s.days=s.days||{}; s.foods=s.foods||{}; s.meals=s.meals||{}; return s; }
 let editSeq=0;
 function touchDay(d){ editSeq++; const s=stamps(); s.days[d]=Date.now(); saveJSON(STAMPS_KEY,s); }
+function touchSaved(id){ editSeq++; const s=stamps(); s.meals[id]=Date.now(); saveJSON(STAMPS_KEY,s); }
 function touchFood(id){ editSeq++; const s=stamps(); s.foods[id]=Date.now(); saveJSON(STAMPS_KEY,s); }
 function syncCfg(){ return loadJSON(SYNC_KEY,{}); }
 const countItems = dayObj => Object.values(dayObj||{}).reduce((n,m)=>n+Object.keys(m||{}).length,0);
 function mergeData(local, remote){
-  const out={log:{},foods:[],stamps:{days:{},foods:{}}};
+  const out={log:{},foods:[],meals:{},stamps:{days:{},foods:{},meals:{}}};
   const days=new Set([...Object.keys(local.log),...Object.keys(remote.log),...Object.keys(local.stamps.days),...Object.keys(remote.stamps.days)]);
   days.forEach(d=>{ const lt=local.stamps.days[d]||0, rt=remote.stamps.days[d]||0;
     let pick = lt>rt ? "l" : rt>lt ? "r" : (countItems(local.log[d])>=countItems(remote.log[d]) ? "l" : "r");
@@ -1000,6 +1055,9 @@ function mergeData(local, remote){
   const ids=new Set([...Object.keys(lf),...Object.keys(rf),...Object.keys(local.stamps.foods),...Object.keys(remote.stamps.foods)]);
   ids.forEach(id=>{ const lt=local.stamps.foods[id]||0, rt=remote.stamps.foods[id]||0;
     const f = lt>rt ? lf[id] : rt>lt ? rf[id] : (lf[id]||rf[id]); if(f) out.foods.push(f); const t=Math.max(lt,rt); if(t) out.stamps.foods[id]=t; });
+  const lm=local.meals||{}, rm=remote.meals||{}, lms=local.stamps.meals||{}, rms=remote.stamps.meals||{};
+  new Set([...Object.keys(lm),...Object.keys(rm),...Object.keys(lms),...Object.keys(rms)]).forEach(id=>{ const lt=lms[id]||0, rt=rms[id]||0;
+    const m = lt>rt ? lm[id] : rt>lt ? rm[id] : (lm[id]||rm[id]); if(m) out.meals[id]=m; const t=Math.max(lt,rt); if(t) out.stamps.meals[id]=t; });
   return out;
 }
 async function gh(path,opts={}){
@@ -1049,14 +1107,14 @@ async function syncNow(){
   try{
     const id=await findOrCreateGist();
     const g=await gh(`/gists/${id}`); const file=g.files&&g.files[GIST_FILE];
-    let remote={log:{},foods:[],stamps:{days:{},foods:{}}};
-    if(file){ let txt=file.content; if(file.truncated && file.raw_url){ txt=await (await fetch(file.raw_url)).text(); } try{ const r=JSON.parse(txt||"{}"); remote={log:r.log||{},foods:r.foods||[],stamps:{days:(r.stamps||{}).days||{},foods:(r.stamps||{}).foods||{}}}; }catch(e){} }
-    const st=stamps(); const local={log:load(),foods:loadCustom(),stamps:{days:st.days,foods:st.foods}};
+    let remote={log:{},foods:[],meals:{},stamps:{days:{},foods:{},meals:{}}};
+    if(file){ let txt=file.content; if(file.truncated && file.raw_url){ txt=await (await fetch(file.raw_url)).text(); } try{ const r=JSON.parse(txt||"{}"); remote={log:r.log||{},foods:r.foods||[],meals:r.meals||{},stamps:{days:(r.stamps||{}).days||{},foods:(r.stamps||{}).foods||{},meals:(r.stamps||{}).meals||{}}}; }catch(e){} }
+    const st=stamps(); const local={log:load(),foods:loadCustom(),meals:loadSaved(),stamps:{days:st.days,foods:st.foods,meals:st.meals}};
     const merged=mergeData(local,remote);
     if(editSeq!==seq0){ syncAgain=true; return; } // you changed something while this sync was running; start over with your latest
-    log=merged.log; save(); CUSTOM=merged.foods; saveCustom(); refreshFoods(); saveJSON(STAMPS_KEY,merged.stamps);
-    const body=JSON.stringify({v:1,updated:new Date().toISOString(),log:merged.log,foods:merged.foods,stamps:merged.stamps});
-    if(!file || body.length && JSON.stringify({log:remote.log,foods:remote.foods,stamps:remote.stamps})!==JSON.stringify({log:merged.log,foods:merged.foods,stamps:merged.stamps}))
+    log=merged.log; save(); CUSTOM=merged.foods; saveCustom(); refreshFoods(); saveSaved(merged.meals); saveJSON(STAMPS_KEY,merged.stamps);
+    const body=JSON.stringify({v:1,updated:new Date().toISOString(),log:merged.log,foods:merged.foods,meals:merged.meals,stamps:merged.stamps});
+    if(!file || body.length && JSON.stringify({log:remote.log,foods:remote.foods,meals:remote.meals,stamps:remote.stamps})!==JSON.stringify({log:merged.log,foods:merged.foods,meals:merged.meals,stamps:merged.stamps}))
       await gh(`/gists/${id}`,{method:"PATCH",body:JSON.stringify({files:{[GIST_FILE]:{content:body}}})});
     cfg.last=Date.now(); saveJSON(SYNC_KEY,{...syncCfg(),last:cfg.last});
     render(); syncMsg("Synced "+new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}));
@@ -1098,6 +1156,8 @@ form.addEventListener("submit",e=>{
 });
 document.getElementById("foods").addEventListener("click",e=>{
   if(e.target.closest("#addFood")){ openForm(null); return; }
+  const dm=e.target.closest("[data-delmeal]"); if(dm){ e.preventDefault(); const id=dm.dataset.delmeal;
+    if(delArmed===id){ delArmed=""; deleteSaved(id); render(); } else { delArmed=id; renderFoods(); setTimeout(()=>{ if(delArmed===id){ delArmed=""; renderFoods(); } },4000); } return; }
   const ed=e.target.closest("[data-edit]"); if(ed){ e.preventDefault(); openForm(ed.dataset.edit); }
 });
 document.getElementById("foods").addEventListener("keydown",e=>{ const ed=e.target.closest("[data-edit]"); if(ed && (e.key==="Enter"||e.key===" ")){ e.preventDefault(); openForm(ed.dataset.edit); } });
@@ -1261,7 +1321,7 @@ function renderGuide(){
     || `<tr><td colspan="5">No nutrients match "${esc(q)}".</td></tr>`;
 }
 document.getElementById("gfilter").addEventListener("input",renderGuide);
-document.addEventListener("click",e=>{ const b=e.target.closest("[data-fold]"); if(b && !e.target.closest("[data-add],[data-edit]")) toggleFold(b.dataset.fold,b.dataset.fid); });
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-fold]"); if(b && !e.target.closest("[data-add],[data-edit],[data-addmeal]")) toggleFold(b.dataset.fold,b.dataset.fid); });
 (function(){ const inp=document.getElementById("wtIn"), m=document.getElementById("wtMsg");
   const show=()=>{ const w=weightLb(); m.textContent = w ? `Saved: ${w} lb. Your protein goal is ${protTarget()} g a day, about ${Math.round(protTarget()/3)} g per meal. Calorie goal: 1,800 on strength days (Mon, Wed, Fri), 1,600 on rest days.` : `No weight saved. Your protein goal is 90 g a day, about 30 g per meal.`; };
   show();
