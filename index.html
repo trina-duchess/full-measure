@@ -1408,7 +1408,7 @@ function renderSystems(q){
     return `<div class="gitem${open?" open":""}"><button type="button" class="ghead" data-s="${esc(x[0])}" aria-expanded="${open}"><span class="gn"><b>${esc(x[0])}</b><small>${x[2].length} nutrients</small></span><span class="gd">${esc(x[2].map(n=>n[0]).join(", "))}</span><span class="chev" aria-hidden="true"></span></button>`
       + `<div class="gbody"${open?"":" hidden"}><div class="how"><dt>How it works</dt><dd>${esc(x[1])}</dd></div>`
       + `<table class="stbl"><thead><tr><th>Nutrient</th><th>What it does for your ${esc(x[0].toLowerCase())}</th><th>In your plan</th><th>Other good sources</th></tr></thead><tbody>`
-      + x[2].map(([n,role])=>{ const f=FACT_BY(n); return `<tr><td data-l="Nutrient"><b>${esc(n)}</b>${f&&targetText(f)?`<small>${targetText(f)}</small>`:""}</td><td data-l="What it does here">${esc(role)}</td><td data-l="In your plan" class="plan">${esc(f?(topSources(f,true,3).join(", ")||"None yet"):"")}</td><td data-l="Other good sources">${esc(otherSources(n))}</td></tr>`; }).join("")
+      + x[2].map(([n,role])=>{ const f=FACT_BY(n); return `<tr><td data-l="Nutrient"><b>${esc(n)}</b>${f&&targetText(f)?`<small>${targetText(f)}</small>`:""}</td><td data-l="What it does here">${esc(role)}</td><td data-l="In your plan" class="plan">${esc(f?(topSources(f,true,999).join(", ")||"None yet"):"")}</td><td data-l="Other good sources">${esc(otherSources(n))}</td></tr>`; }).join("")
       + `</tbody></table></div></div>`; }).join("") || `<p class="empty">No systems match "${esc(q)}".</p>`;
   document.getElementById("gall").textContent = rows.length && rows.every(x=>SOPEN.has(x[0])) ? "Collapse all" : "Expand all";
 }
@@ -1421,7 +1421,7 @@ function renderGuide(){
   const rows=[...FACTS].sort((a,b)=>a[0].localeCompare(b[0])).filter(f=>!q || [f[0],f[1],f[2],HOW[f[0]]||"",OTHERS[f[0]]||"",topSources(f,true,5).join(" ")].join(" ").toLowerCase().includes(q));
   document.getElementById("gbody").innerHTML = rows.map(f=>{ const tt=targetText(f), open=GOPEN.has(f[0]);
     return `<div class="gitem${open?" open":""}"><button type="button" class="ghead" data-g="${esc(f[0])}" aria-expanded="${open}"><span class="gn"><b>${esc(f[0])}${/^Omega-3/.test(f[0])?"*":""}</b>${tt?`<small>${tt}</small>`:""}</span><span class="gd">${esc(f[1])}</span><span class="chev" aria-hidden="true"></span></button>`
-      + `<dl class="gbody"${open?"":" hidden"}>${HOW[f[0]]?`<div class="how"><dt>How it works</dt><dd>${esc(HOW[f[0]])}</dd></div>`:""}<div><dt>Body systems</dt><dd>${esc(f[2])}</dd></div><div><dt>In your plan</dt><dd class="plan">${esc(topSources(f,true,5).join(", ")||"None yet")}</dd></div><div><dt>Other good sources</dt><dd>${esc(otherSources(f[0]))}</dd></div></dl></div>`; }).join("")
+      + `<dl class="gbody"${open?"":" hidden"}>${HOW[f[0]]?`<div class="how"><dt>How it works</dt><dd>${esc(HOW[f[0]])}</dd></div>`:""}<div><dt>Body systems</dt><dd>${esc(f[2])}</dd></div><div><dt>In your plan</dt><dd class="plan">${esc(topSources(f,true,999).join(", ")||"None yet")}</dd></div><div><dt>Other good sources</dt><dd>${esc(otherSources(f[0]))}</dd></div></dl></div>`; }).join("")
     || `<p class="empty">No nutrients match "${esc(q)}".</p>`;
   document.getElementById("gall").textContent = rows.length && rows.every(f=>GOPEN.has(f[0])) ? "Collapse all" : "Expand all";
 }
