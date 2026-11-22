@@ -801,27 +801,29 @@ document.addEventListener("touchmove",e=>{ if(drag && drag.active) e.preventDefa
 window.addEventListener("pointerup",e=>{
   if(!drag) return;
   if(drag.active){ const m=mealAt(e.clientX,e.clientY); const id=drag.id, sv=drag.saved; endDrag(); if(m){ if(sv) addSaved(m.dataset.meal,id); else addOne(m.dataset.meal,id); } return; }
-  endDrag();
+  // A quick tap (no drag) opens a menu: Breakfast, Lunch, Dinner or Snacks.
+  const tap=!drag.moved && Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<8, id=drag.id, sv=drag.saved, el=drag.el;
+  endDrag(); if(tap) openPicker(id,el,sv);
 });
 window.addEventListener("pointercancel",()=>{ if(drag) endDrag(); });
 ["tracker","needbar"].forEach(id=>document.getElementById(id).addEventListener("click",e=>{ const b=e.target.closest("[data-sug]"); if(b) openPicker(b.dataset.sug,b); }));
 foodsEl.addEventListener("dragstart",e=>e.preventDefault());
 foodsEl.addEventListener("selectstart",e=>e.preventDefault());
 foodsEl.addEventListener("contextmenu",e=>{ if(e.target.closest("[data-add],[data-addmeal]")) e.preventDefault(); });
-function openPicker(id,el){
+function openPicker(id,el,saved){
   if(!live()) return;
-  closePicker(); const f=BYID[id]; const r=el.getBoundingClientRect();
+  closePicker(); const f=saved?{name:esc((loadSaved()[id]||{}).name||"meal")}:BYID[id]; if(!f) return; const r=el.getBoundingClientRect();
   picker=document.createElement("div"); picker.className="picker"; picker.setAttribute("role","dialog");
   picker.innerHTML=`<p>Add <b>${f.name}</b> to:</p>`+MEALS.map(([k,l])=>`<button data-pick="${k}">${l}</button>`).join("");
   document.body.appendChild(picker);
   const w=240, left=Math.min(Math.max(8,r.left+r.width/2-w/2), window.innerWidth-w-8);
   let top=r.bottom+6; if(top+150>window.innerHeight) top=r.top-150;
   picker.style.left=left+"px"; picker.style.top=Math.max(8,top)+"px";
-  picker.addEventListener("click",ev=>{ const p=ev.target.closest("[data-pick]"); if(p){ addOne(p.dataset.pick,id); closePicker(); } });
+  picker.addEventListener("click",ev=>{ const p=ev.target.closest("[data-pick]"); if(p){ const k=p.dataset.pick, lbl=p.textContent; if(saved) addSaved(k,id); else addOne(k,id); picker.innerHTML=`<p class="done">✓ Added to <b>${lbl}</b></p>`; setTimeout(closePicker,900); } });
   picker.querySelector("button").focus();
 }
 function closePicker(){ if(picker){ picker.remove(); picker=null; } }
-document.addEventListener("pointerdown",e=>{ if(picker && !picker.contains(e.target) && !e.target.closest("[data-add],[data-sug]")) closePicker(); });
+document.addEventListener("pointerdown",e=>{ if(picker && !picker.contains(e.target) && !e.target.closest("[data-add],[data-addmeal],[data-sug]")) closePicker(); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") closePicker(); });
 window.addEventListener("scroll",closePicker,{passive:true});
 let armed=0; const qc=document.getElementById("qClear");
